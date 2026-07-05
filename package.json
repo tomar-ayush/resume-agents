@@ -1,0 +1,19 @@
+{
+  "name": "linkedin_note",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "refresh": "nodemon index.js",
+    "test": "node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "LinkedIn connect automation with an Express API",
+  "dependencies": {
+    "express": "^4.21.2",
+    "nodemon": "^3.1.14",
+    "patchright": "^1.61.1"
+  }
+}

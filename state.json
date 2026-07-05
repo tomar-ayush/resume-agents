@@ -1,0 +1,14 @@
+{
+  "jobs": {
+    "ref_123": {
+      "referral_id": "ref_123",
+      "message": "Hi, I'd love to connect and learn more about your work.",
+      "linkedin_url": "https://www.linkedin.com/in/neze-papreja/",
+      "referral_name": "Neze Papreja",
+      "user_name": "Ayush",
+      "state": "navigated",
+      "error": null,
+      "updated_at": "2026-07-05T13:36:40.999Z"
+    }
+  }
+}
