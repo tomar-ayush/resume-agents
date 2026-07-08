@@ -1,11 +1,13 @@
 // Page: sign_in
-// Sign-in modal is OPEN. Fill email/password, submit. If Workday reports an
-// error (e.g. account doesn't exist yet) we pivot to the create-account link.
+// Sign-in modal is OPEN. We ONLY fill email/password. We do NOT click the
+// Sign In button — the user clicks it and completes any OTP / 2FA themselves.
+// If sign-in fails or the user prefers, they can switch to the register flow;
+// we never auto-navigate there.
 
-const { guarded, safeFill, safeClick, isVisible, logStep } = require('../helpers');
+const { guarded, safeFill, logStep } = require('../helpers');
 
-// Click Submit at most once per session (loop re-fires autofill every ~30s).
-let submitted = false;
+// Log once that we've filled the fields and are now waiting on the user.
+let awaitLogged = false;
 
 const autofillers = [
   {
@@ -16,32 +18,18 @@ const autofillers = [
     name: 'password',
     run: (page, profile) => safeFill(page, 'input[data-automation-id="password"]', profile.password),
   },
-  {
-    name: 'submit',
-    run: async (page) => {
-      if (submitted) return true; // already submitted; don't re-click
-      const clicked = await safeClick(page, 'button[data-automation-id="signInSubmitButton"]', 1500);
-      if (clicked) submitted = true;
-      logStep('sign_in_submitted', { submitted: clicked });
-      return clicked;
-    },
-  },
-  {
-    name: 'error_to_create_account',
-    run: async (page) => {
-      await page.waitForTimeout(3000);
-      if (await isVisible(page, 'div[data-automation-id="errorMessage"]', 500)) {
-        logStep('sign_in_error_switching_to_create_account');
-        return await safeClick(page, 'button[data-automation-id="createAccountLink"]', 1500);
-      }
-      return false;
-    },
-  },
 ];
 
 async function autofill(page, profile) {
   for (const a of autofillers) {
     await guarded(`sign_in.${a.name}`, () => a.run(page, profile));
+  }
+  if (!awaitLogged) {
+    awaitLogged = true;
+    logStep('auth_fields_filled_awaiting_user', {
+      pageType: 'sign_in',
+      next: 'user clicks Sign In and completes OTP',
+    });
   }
 }
 

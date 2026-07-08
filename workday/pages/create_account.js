@@ -1,13 +1,12 @@
 // Page: create_account
-// Register modal is OPEN. Fill email/password/verify, tick the agreement box,
-// submit.
+// Register modal is OPEN. We ONLY fill email/password/verify and tick the
+// agreement checkbox. We do NOT click the Register button — the user clicks it
+// and completes any email/OTP verification themselves.
 
-const { guarded, safeFill, safeClick, logStep } = require('../helpers');
+const { guarded, safeFill, logStep } = require('../helpers');
 
-// Click Submit at most once per session. The assist loop re-fires autofill
-// every ~30s; without this guard it would re-click Submit (and re-scroll the
-// modal) forever, looking "stuck" on the register page.
-let submitted = false;
+// Log once that we've filled the fields and are now waiting on the user.
+let awaitLogged = false;
 
 const autofillers = [
   {
@@ -28,18 +27,8 @@ const autofillers = [
       const cb = page.locator('input[data-automation-id="createAccountCheckbox"]').first();
       if (await cb.isVisible({ timeout: 400 }).catch(() => false)) {
         const checked = await cb.isChecked().catch(() => false);
-        if (!checked) await cb.click().catch(() => { });
+        if (!checked) await cb.click().catch(() => {});
       }
-    },
-  },
-  {
-    name: 'submit',
-    run: async (page) => {
-      if (submitted) return true; // already submitted; don't re-click
-      const clicked = await safeClick(page, 'button[data-automation-id="createAccountSubmitButton"]', 1500);
-      if (clicked) submitted = true;
-      logStep('create_account_submitted', { submitted: clicked });
-      return clicked;
     },
   },
 ];
@@ -47,6 +36,13 @@ const autofillers = [
 async function autofill(page, profile) {
   for (const a of autofillers) {
     await guarded(`create_account.${a.name}`, () => a.run(page, profile));
+  }
+  if (!awaitLogged) {
+    awaitLogged = true;
+    logStep('auth_fields_filled_awaiting_user', {
+      pageType: 'create_account',
+      next: 'user clicks Register and completes verification',
+    });
   }
 }
 

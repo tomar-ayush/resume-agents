@@ -1,31 +1,22 @@
 // Page: create_account_prompt
-// Register modal is CLOSED — these buttons OPEN it. We click the create-account
-// link so the create_account page can fill signup fields.
+// Register modal is CLOSED. We do NOT click the create-account link — the user
+// opens it themselves (e.g. from the sign-in modal) when they prefer to
+// register instead of signing in. Once open, the `create_account` page fills
+// the fields and the user completes registration + verification.
 
-const { safeClick, logStep } = require('../helpers');
+const { logStep } = require('../helpers');
 
-const autofillers = [
-  {
-    name: 'open_create_account',
-    run: async (page) => {
-      const selectors = [
-        'button[data-automation-id="createAccountLink"]',
-        'a[data-automation-id="createAccountLink"]',
-      ];
-      for (const sel of selectors) {
-        if (await safeClick(page, sel, 1200)) {
-          logStep('create_account_prompt_click', { selector: sel });
-          return true;
-        }
-      }
-      return false;
-    },
-  },
-];
+let logged = false;
 
-async function autofill(page) {
-  for (const a of autofillers) {
-    await a.run(page);
+const autofillers = [];
+
+async function autofill() {
+  if (!logged) {
+    logged = true;
+    logStep('auth_prompt_awaiting_user', {
+      pageType: 'create_account_prompt',
+      note: 'user opens the register modal themselves',
+    });
   }
 }
 
