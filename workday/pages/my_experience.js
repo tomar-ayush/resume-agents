@@ -17,6 +17,18 @@ const WORK_EXP_SECTION = 'div[role="group"][aria-labelledby="Work-Experience-sec
 const EDU_SECTION = 'div[role="group"][aria-labelledby="Education-section"]';
 const WEBSITES_SECTION = 'div[role="group"][aria-labelledby="Websites-section"]';
 
+// Tunable timings (ms) for the multiselect (skills / field-of-study) flow.
+// Adjust these without hunting through the logic below.
+const MULTISELECT_TIMINGS = {
+  containerVisibleMs: 400,   // wait for the field container to appear
+  inputVisibleMs: 400,       // wait for the search input to appear
+  afterTypeMs: 1000,         // pause after typing the query before pressing Enter
+  afterEnterMs: 2500,        // pause after Enter for the results popup to populate
+  optionVisibleMs: 3000,     // wait for the first result option to be clickable
+  afterClickMs: 500,         // pause after selecting, for you to verify
+  afterClearMs: 500,         // pause after clearing the input for the next value
+};
+
 // --- work experience ---------------------------------------------------------
 
 // Returns true if at least one work-experience block is expanded (a jobTitle
@@ -128,7 +140,7 @@ async function fillYearOnly(page, formFieldSelector, value) {
 async function addMultiselectValue(page, containerSelector, value) {
   if (!value) return;
   const container = page.locator(containerSelector).first();
-  if (!(await container.isVisible({ timeout: 400 }).catch(() => false))) return;
+  if (!(await container.isVisible({ timeout: MULTISELECT_TIMINGS.containerVisibleMs }).catch(() => false))) return;
 
   const v = String(value).toLowerCase();
   const already = await page.evaluate((val) => {
@@ -144,20 +156,20 @@ async function addMultiselectValue(page, containerSelector, value) {
 
   // Search input: prefer placeholder="Search", fall back to first input.
   let input = container.locator('input[placeholder="Search"]').first();
-  if (!(await input.isVisible({ timeout: 400 }).catch(() => false))) {
+  if (!(await input.isVisible({ timeout: MULTISELECT_TIMINGS.inputVisibleMs }).catch(() => false))) {
     input = container.locator('input').first();
   }
-  if (!(await input.isVisible({ timeout: 400 }).catch(() => false))) {
+  if (!(await input.isVisible({ timeout: MULTISELECT_TIMINGS.inputVisibleMs }).catch(() => false))) {
     logStep('skill_input_not_visible', { value });
     return;
   }
   await input.click().catch(() => { });
   await input.fill(value).catch(() => { });
-  // Wait 1s, then press Enter to trigger the search.
-  await page.waitForTimeout(1000);
+  // Wait, then press Enter to trigger the search.
+  await page.waitForTimeout(MULTISELECT_TIMINGS.afterTypeMs);
   await page.keyboard.press('Enter').catch(() => { });
-  // Wait 2s for the results to populate.
-  await page.waitForTimeout(2000);
+  // Wait for the results to populate.
+  await page.waitForTimeout(MULTISELECT_TIMINGS.afterEnterMs);
 
   // The results popup lives in activeListContainer (teleported outside the
   // formField container). Always select the FIRST option in the list.
@@ -166,8 +178,8 @@ async function addMultiselectValue(page, containerSelector, value) {
     .first();
 
   let clicked = false;
-  if (await option.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await option.click({ timeout: 3000 }).catch(() => { });
+  if (await option.isVisible({ timeout: MULTISELECT_TIMINGS.optionVisibleMs }).catch(() => false)) {
+    await option.click({ timeout: MULTISELECT_TIMINGS.optionVisibleMs }).catch(() => { });
     clicked = true;
   } else {
     // Fallback: press Enter to commit the top result.
@@ -176,11 +188,11 @@ async function addMultiselectValue(page, containerSelector, value) {
 
   // Let the user verify the selection before we move on to the next skill.
   logStep('skill_option_clicked', { value, clicked });
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(MULTISELECT_TIMINGS.afterClickMs);
 
   // Clear the input so the next value can be typed fresh.
   await input.fill('').catch(() => { });
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(MULTISELECT_TIMINGS.afterClearMs);
 }
 
 // --- skills ------------------------------------------------------------------
@@ -205,11 +217,14 @@ async function fillSkills(page, skills) {
 // --- resume ------------------------------------------------------------------
 
 async function uploadResume(page, resumeFilePath) {
-  if (!resumeFilePath) return;
-  // Resolve to an absolute path (profile may store a relative path) and skip
-  // silently if the file doesn't exist, so a missing resume never throws or
-  // causes the assist loop to spin.
-  const absPath = require('node:path').resolve(__dirname, '..', resumeFilePath);
+  if (!resumeFilePath) {
+    logStep('resume_skipped_no_path');
+    return;
+  }
+  // resumeFilePath is already absolute (set by downloadResumeFromUrl in
+  // index.js). Resolve anyway so a relative path still works, and skip
+  // silently if the file doesn't exist.
+  const absPath = require('node:path').resolve(resumeFilePath);
   let exists = false;
   try { await require('node:fs/promises').access(absPath); exists = true; } catch (_) { /* noop */ }
   if (!exists) {
@@ -217,34 +232,71 @@ async function uploadResume(page, resumeFilePath) {
     return;
   }
   const sel = 'input[data-automation-id="file-upload-input-ref"]';
-  if (!(await isVisible(page, sel, 800))) return;
-  await page.locator(sel).first().setInputFiles(absPath);
+  // The file input is visually hidden (the visible part is the "Select files"
+  // button / drop-zone). setInputFiles works on hidden inputs, so we must NOT
+  // gate on visibility here — that was causing us to bail out every time.
+  const inputEl = page.locator(sel).first();
+  if (!(await inputEl.count())) {
+    logStep('resume_upload_input_not_found');
+    return;
+  }
+  await inputEl.setInputFiles(absPath);
   logStep('resume_uploaded', { resumeFilePath: absPath });
 }
 
 // --- websites ----------------------------------------------------------------
 
-// The Websites section is already expanded (a "Websites 1" block with a
-// formField-url input is present on load). We fill that first input, then for
-// each additional link click "Add Another" and fill the newly added url input.
+// The Websites section is already expanded (a "Websites 1" block with a url
+// input is present on load). We fill each link into the first EMPTY url input,
+// clicking "Add Another" whenever we run out of empty inputs.
+// Links come from the `websites` array in information.js.
+//
+// We key off the stable `input[name="url"]` attribute (present on every website
+// url field) rather than the formField-url wrapper, which was not matching the
+// first input reliably. We do NOT gate on isVisible — these inputs report
+// visible:false under Playwright despite being interactable.
 async function fillWebsites(page, profile) {
-  const section = page.locator(WEBSITES_SECTION).first();
-  if (!(await section.isVisible({ timeout: 400 }).catch(() => false))) return;
+  const links = Array.isArray(profile.websites) ? profile.websites.filter(Boolean) : [];
+  if (links.length === 0) {
+    logStep('websites_empty');
+    return;
+  }
 
-  const links = [profile.linkedInLink, profile.githubLink].filter(Boolean);
-  if (links.length === 0) return;
-
-  for (let i = 0; i < links.length; i += 1) {
-    // For the 2nd+ link, expand a new block first.
-    if (i > 0) {
+  logStep('websites_start', { count: links.length });
+  for (const link of links) {
+    // Find the first currently-empty url input.
+    const inputs = page.locator('input[name="url"]');
+    let target = null;
+    const count = await inputs.count();
+    for (let j = 0; j < count; j += 1) {
+      const cur = await inputs.nth(j).inputValue().catch(() => '');
+      if (!cur || !cur.trim()) { target = inputs.nth(j); break; }
+    }
+    // No empty input available — add another block.
+    if (!target) {
       await safeClick(page, `${WEBSITES_SECTION} button[data-automation-id="add-button"]`, 2000);
       await page.waitForTimeout(600);
+      const inputs2 = page.locator('input[name="url"]');
+      const c2 = await inputs2.count();
+      target = c2 > 0 ? inputs2.nth(c2 - 1) : null;
     }
-    const input = section.locator('div[data-automation-id="formField-url"] input').nth(i);
-    if (!(await input.isVisible({ timeout: 400 }).catch(() => false))) continue;
-    const cur = await input.inputValue().catch(() => '');
-    if (!cur) await input.fill(links[i]);
+    if (!target) {
+      logStep('websites_input_missing', { link });
+      continue;
+    }
+
+    await target.scrollIntoViewIfNeeded().catch(() => { });
+    await target.click({ scroll: 'nearest' }).catch(() => { });
+    await target.fill('').catch(() => { });
+    await target.fill(link).catch(() => { });
+    let val = await target.inputValue().catch(() => '');
+    if (!val) {
+      await target.pressSequentially(link, { delay: 30 }).catch(() => { });
+      val = await target.inputValue().catch(() => '');
+    }
+    logStep('websites_filled', { expected: link, actual: val });
   }
+  logStep('websites_done');
 }
 
 // --- autofillers --------------------------------------------------------------

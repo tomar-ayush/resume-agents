@@ -59,6 +59,8 @@ async function safeFill(page, selector, value) {
   try {
     const el = page.locator(selector).first();
     if (!(await el.isVisible({ timeout: 300 }).catch(() => false))) return false;
+    const current = await el.inputValue().catch(() => '');
+    if (current && current.trim() !== '') return false;
     // scroll:'nearest' keeps the modal from jumping when filling fields.
     await el.fill(String(value), { scroll: 'nearest' });
     return true;

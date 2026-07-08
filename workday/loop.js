@@ -67,6 +67,7 @@ async function assistLoop(page, profile, updateResult) {
   let lastUnknownLogAt = 0;
   let lastSubmitVisible = false;
   const dumpedForPage = new Set(); // pageType where we've already dumped form fields
+  const filledPages = new Set();   // pageType whose autofill has already run once
   const inProgress = { flag: false };
   const startedAt = Date.now();
 
@@ -120,7 +121,12 @@ async function assistLoop(page, profile, updateResult) {
     lastSubmitVisible = submitVisibleNow;
 
     const cooldownExpired = Date.now() - lastAutofillAt > 30_000;
-    const shouldFill = signatureChanged || cooldownExpired;
+    // Only re-run autofill if the page is new, the signature changed, the user
+    // advanced via a submit click, OR the 30s cooldown expired AND we haven't
+    // already filled this page. Once a page is filled we stop re-firing it, so
+    // the loop doesn't endlessly re-type into fields (which caused the
+    // scroll-up/down loop on My Experience).
+    const shouldFill = signatureChanged || submitClicked || (!filledPages.has(pageType) && (signatureChanged || cooldownExpired));
 
     if (shouldFill) {
       inProgress.flag = true;
@@ -144,6 +150,7 @@ async function assistLoop(page, profile, updateResult) {
           logStep('page_autofill_error', { pageType, error: error.message });
           await updateResult({ state: `${pageType}_autofill_failed`, error: error.message });
         }
+        filledPages.add(pageType);
         lastSignature = signature;
         lastAutofillAt = Date.now();
         await new Promise((r) => setTimeout(r, AUTOFILL_COOLDOWN_MS));

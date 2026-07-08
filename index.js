@@ -1,4 +1,6 @@
 const express = require('express');
+const fs = require('node:fs/promises');
+const path = require('node:path');
 const { performConnectionTask } = require('./linkedin');
 const { performWorkdayApplication } = require('./workday/index');
 const { startCloudflareTunnel } = require('./cloudflareTunnel');
@@ -10,6 +12,35 @@ const {
     updateJob,
     getState,
 } = require('./stateStore');
+
+// Download a presigned resume URL to a local file so the browser can upload it.
+// Returns the absolute path to the downloaded file, or null on failure.
+async function downloadResumeFromUrl(presignedUrl, applicationId) {
+    if (!presignedUrl) {
+        console.warn('[resume] no presigned URL provided — skipping download');
+        return null;
+    }
+    console.log('[resume] presigned URL:', presignedUrl);
+    try {
+        const res = await fetch(presignedUrl);
+        console.log('[resume] download response status:', res.status, res.statusText);
+        if (!res.ok) {
+            console.warn('[resume] download failed:', res.status, res.statusText);
+            return null;
+        }
+        const buf = Buffer.from(await res.arrayBuffer());
+        const fileName = `resume.pdf`;
+        const outDir = path.join(__dirname, 'resources');
+        await fs.mkdir(outDir, { recursive: true });
+        const outPath = path.join(outDir, fileName);
+        await fs.writeFile(outPath, buf);
+        console.log('[resume] downloaded to', outPath, `(${buf.length} bytes)`);
+        return outPath;
+    } catch (error) {
+        console.warn('[resume] download error:', error.message);
+        return null;
+    }
+}
 
 // Feature flag: set to false to disable Cloudflare Quick Tunnel
 const ENABLE_CLOUDFLARE_TUNNEL = false;
@@ -111,6 +142,14 @@ app.post('/run-workday-task', async (req, res) => {
                 error: 'Local profile (information.js) validation failed',
                 details: errors,
             });
+        }
+
+        // Download the resume from the presigned URL in the request body and
+        // point the profile at the local copy so the upload step can use it.
+        const presignedResumeUrl = rawPayload.resume_url || rawPayload.resumeUrl || rawPayload.presigned_url;
+        const downloadedResumePath = await downloadResumeFromUrl(presignedResumeUrl, application_id);
+        if (downloadedResumePath) {
+            profile.resumeFilePath = downloadedResumePath;
         }
 
         const payload = { application_id, job_url, profile };
