@@ -12,6 +12,8 @@
   "license": "ISC",
   "description": "LinkedIn connect automation with an Express API",
   "dependencies": {
+    "cloudflared": "^0.7.1",
+    "cors": "^2.8.6",
     "express": "^4.21.2",
     "nodemon": "^3.1.14",
     "patchright": "^1.61.1"

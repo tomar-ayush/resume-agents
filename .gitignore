@@ -1,1 +1,4 @@
 node_modules/
+
+# Vendored reference repo (cloned, not part of this project's source)
+vendor-workday-automator/

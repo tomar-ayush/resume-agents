@@ -1,6 +1,8 @@
 const express = require('express');
-const path = require('node:path');
 const { performConnectionTask } = require('./linkedin');
+const { performWorkdayApplication } = require('./workday/index');
+const { startCloudflareTunnel } = require('./cloudflareTunnel');
+const { loadLocalProfile, validateWorkdayProfile } = require('./workdayProfile');
 const {
     loadState,
     ensureStateLoaded,
@@ -9,28 +11,16 @@ const {
     getState,
 } = require('./stateStore');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+// Feature flag: set to false to disable Cloudflare Quick Tunnel
+const ENABLE_CLOUDFLARE_TUNNEL = false;
 
+const cors = require('cors');
+const app = express();
+const PORT = process.env.PORT || 3005;
+
+app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
-app.use(express.text({ type: ['text/plain', 'text/*', 'application/*+json'] }));
-
-app.use((req, _res, next) => {
-    if (typeof req.body === 'string') {
-        try {
-            req.body = JSON.parse(req.body);
-        } catch (_error) {
-            req.body = { raw: req.body };
-        }
-    }
-
-    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
-        req.body = {};
-    }
-
-    next();
-});
 
 async function runLinkedInTask(payload) {
     try {
@@ -41,6 +31,21 @@ async function runLinkedInTask(payload) {
         await updateJob({ referral_id: payload.referral_id, state: 'completed', error: null });
     } catch (error) {
         await updateJob({ referral_id: payload.referral_id, state: 'failed', error: error.message });
+    }
+}
+
+async function runWorkdayTask(payload) {
+    // stateStore keys by `referral_id`; we reuse that column for application_id
+    // so workday jobs live in the same jobs table without a schema change.
+    const id = payload.application_id;
+    try {
+        await updateJob({ referral_id: id, state: 'running', error: null });
+        await performWorkdayApplication(payload, async (update) => {
+            await updateJob({ referral_id: id, ...update });
+        });
+        await updateJob({ referral_id: id, state: 'completed', error: null });
+    } catch (error) {
+        await updateJob({ referral_id: id, state: 'failed', error: error.message });
     }
 }
 
@@ -80,6 +85,65 @@ app.post('/run-task', async (req, res) => {
     }
 });
 
+app.post('/run-workday-task', async (req, res) => {
+    try {
+        const rawPayload = req.body;
+        console.log('Received workday task payload:', rawPayload);
+        // Accept either `application_id` or `task_id` as the job identifier.
+        const application_id = rawPayload.application_id || rawPayload.task_id;
+        const { job_url } = rawPayload;
+
+        console.log('Received workday task:', { application_id, job_url });
+
+        if (!application_id) {
+            return res.status(400).json({ success: false, error: 'application_id (or task_id) is required' });
+        }
+        if (!job_url) {
+            return res.status(400).json({ success: false, error: 'job_url is required' });
+        }
+
+        // All candidate data is pulled from the local information.js file.
+        const profile = loadLocalProfile();
+        const { valid, errors } = validateWorkdayProfile(profile);
+        if (!valid) {
+            return res.status(400).json({
+                success: false,
+                error: 'Local profile (information.js) validation failed',
+                details: errors,
+            });
+        }
+
+        const payload = { application_id, job_url, profile };
+
+        // Persist a lightweight record — skip the credentials so we don't
+        // write plaintext passwords to state.json.
+        const { password: _pw, ...safeProfile } = profile;
+        await createJob({
+            referral_id: application_id,
+            kind: 'workday',
+            application_id,
+            job_url,
+            profile: safeProfile,
+        });
+
+        void runWorkdayTask(payload);
+
+        return res.status(202).json({ success: true, application_id, state: 'queued' });
+    } catch (error) {
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.get('/task-status/:id', async (req, res) => {
+    try {
+        const record = await getState(req.params.id);
+        if (!record) return res.status(404).json({ success: false, error: 'not found' });
+        return res.json({ success: true, result: record });
+    } catch (error) {
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 app.patch('/result-update', async (req, res) => {
     try {
         const { referral_id, state, error } = req.body;
@@ -97,7 +161,25 @@ app.patch('/result-update', async (req, res) => {
 
 (async () => {
     await loadState();
-    app.listen(PORT, () => {
+
+    const server = app.listen(PORT, async () => {
         console.log(`Server running on port ${PORT}`);
+
+        if (ENABLE_CLOUDFLARE_TUNNEL) {
+            try {
+                const tunnelUrl = await startCloudflareTunnel({ port: PORT });
+                if (tunnelUrl) {
+                    console.log(`Cloudflare Quick Tunnel available at ${tunnelUrl}`);
+                }
+            } catch (error) {
+                console.warn('Cloudflare Quick Tunnel startup failed:', error.message);
+            }
+        } else {
+            console.log('Cloudflare Quick Tunnel disabled (ENABLE_CLOUDFLARE_TUNNEL=false)');
+        }
+    });
+
+    process.on('SIGTERM', () => {
+        server.close(() => process.exit(0));
     });
 })();

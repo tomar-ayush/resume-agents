@@ -121,6 +121,7 @@ npm start
 ```
 
 Server listens on `http://localhost:3000`.
+If Cloudflare is installed and not disabled, the app will also start a Quick Tunnel and print the public URL when it becomes available.
 
 Trigger a connection task:
 

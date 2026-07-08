@@ -8,7 +8,203 @@
       "user_name": "Ayush",
       "state": "completed",
       "error": null,
-      "updated_at": "2026-07-05T16:46:55.955Z"
+      "updated_at": "2026-07-07T13:52:41.595Z"
+    },
+    "934e2c40-f7ea-4dfb-84b8-d041d6061d2f": {
+      "referral_id": "934e2c40-f7ea-4dfb-84b8-d041d6061d2f",
+      "message": "Hi Kaustubh Kurumbhate, I'm exploring opportunities and would love to connect!",
+      "linkedin_url": "https://www.linkedin.com/in/kaustubh-kurumbhate-97195a120/",
+      "referral_name": "Kaustubh Kurumbhate",
+      "user_name": "Ayush Pratap Singh",
+      "state": "completed",
+      "error": null,
+      "updated_at": "2026-07-07T18:32:08.174Z"
+    },
+    "test-app-001": {
+      "referral_id": "test-app-001",
+      "kind": "workday",
+      "application_id": "test-app-001",
+      "job_url": "https://elevancehealth.wd1.myworkdayjobs.com/carelonglobal_in/job/IND-KA-Bengaluru-Bagmane-Solarium-City/Associate-Software-Engineer_JR180452?source=LinkedIn",
+      "profile": {
+        "email": "ayushtomar8624@gmail.com",
+        "fullName": "Ayush Pratap Singh",
+        "firstName": "Ayush",
+        "lastName": "Pratap Singh",
+        "suffix": "Mr",
+        "street": "1600 Amphitheatre Parkway",
+        "city": "Mountain View",
+        "state": "California",
+        "postalCode": "94043",
+        "phoneType": "Mobile",
+        "phoneNumber": "7889440379",
+        "workexperiences": [
+          {
+            "jobtitle": "Intern",
+            "company": "Acme Metals LLC",
+            "location": "New York, New York",
+            "startDateMonth": "05",
+            "startDateYear": "1990",
+            "endDateMonth": "06",
+            "endDateYear": "2020",
+            "description": "At HypeTech.ai, I've had the incredible opportunity to sit at the intersection of innovation, disruption, and impact, leading cross-functional teams to architect and deploy cutting-edge AI solutions that are redefining what’s possible.\n\nI've been driving synergy between product, engineering, and go-to-market teams to deliver scalable, human-centric AI platforms that empower users and elevate enterprise value. My work has spanned everything from LLM-powered automation to responsible AI governance frameworks, all while championing a culture of continuous innovation and design thinking.\n\nHighlights:\n\nSpearheaded the go-to-market launch of our proprietary GenAI solution, resulting in a 3x increase in client engagement and a 25% reduction in time-to-insight.\n\nPartnered with C-level stakeholders to align our AI roadmap with mission-critical OKRs, accelerating digital transformation across global verticals.\n\nEvangelized AI literacy across the organization through lunch-and-learns, internal workshops, and a monthly “AI for Impact” newsletter.\n\nCo-authored our Responsible AI Playbook, positioning HypeTech.ai as a thought leader in the ethical AI space.\n\nEvery day, I'm humbled to work alongside brilliant minds who are just as passionate about pushing the envelope as they are about making a positive societal impact. Let's build the future—one model at a time."
+          },
+          {
+            "jobtitle": "Machine Learning Lead",
+            "company": "VisionaryAI Labs",
+            "location": "Redmond, Washington",
+            "startDateMonth": "05",
+            "startDateYear": "2021",
+            "endDateMonth": "07",
+            "endDateYear": "2025",
+            "description": "At VisionaryAI Labs, I have been leading high-impact initiatives at the intersection of data science, machine learning, and product innovation. My role focuses on driving the end-to-end development of scalable, production-ready AI systems that solve real-world problems and deliver measurable business outcomes.\n\nKey responsibilities and accomplishments:\n\nDirected a cross-functional team of ML engineers, data scientists, and product stakeholders to develop and deploy computer vision models powering over 10 million edge devices globally.\n\nSpearheaded the implementation of MLOps workflows, reducing deployment timelines by 80% and improving experiment traceability and model reproducibility.\n\nLed efforts in fine-tuning transformer-based NLP architectures, resulting in a 27% improvement in multilingual text classification performance across key markets.\n\nPartnered with leadership to align AI initiatives with strategic business goals, enabling data-driven decision-making and accelerating product development cycles.\n\nEstablished internal knowledge-sharing frameworks, including technical deep dives, code reviews, and mentorship programs to elevate team capability and foster a culture of continuous learning.\n\nThis role has allowed me to combine technical rigor with strategic thinking to deliver AI solutions that are not only innovative but also ethical, reliable, and aligned with long-term organizational objectives.\n\nLet me know if you'd like one tailored to a different role (e.g., AI Product Manager, Research Scientist, Prompt Engineer, etc.) or with a different tone (e.g., more concise, more academic, etc.)."
+          }
+        ],
+        "school": "Meta University",
+        "degree": "Bachelors",
+        "fieldOfStudy": "Computer Science",
+        "gpa": "3.75",
+        "skills": [
+          "Python",
+          "SQL"
+        ],
+        "startDate": "2022",
+        "endDate": "2026",
+        "resumeFilePath": "./blank.txt",
+        "linkedInLink": "https://www.linkedin.com/in/username/",
+        "githubLink": "https://github.com/username",
+        "gender": "Male",
+        "ethnicity": "Black",
+        "hispanicOrLatino": "No",
+        "veteranStatus": "I am not a veteran",
+        "disability": "no"
+      },
+      "state": "on_sign_in",
+      "error": null,
+      "updated_at": "2026-07-08T15:29:28.988Z"
+    },
+    "test-001": {
+      "referral_id": "test-001",
+      "kind": "workday",
+      "application_id": "test-001",
+      "job_url": "https://aspentech.wd5.myworkdayjobs.com/en-US/AspenTech/job/Software-Quality-Engineer-I_R9206",
+      "profile": {
+        "email": "ayushtomar8624@gmail.com",
+        "fullName": "Ayush Pratap Singh",
+        "firstName": "Ayush",
+        "lastName": "Pratap Singh",
+        "suffix": "Mr",
+        "street": "1600 Amphitheatre Parkway",
+        "city": "Mountain View",
+        "state": "California",
+        "postalCode": "94043",
+        "phoneType": "Mobile",
+        "phoneNumber": "7889440379",
+        "workexperiences": [
+          {
+            "jobtitle": "Intern",
+            "company": "Acme Metals LLC",
+            "location": "New York, New York",
+            "startDateMonth": "05",
+            "startDateYear": "1990",
+            "endDateMonth": "06",
+            "endDateYear": "2020",
+            "description": "At HypeTech.ai, I've had the incredible opportunity to sit at the intersection of innovation, disruption, and impact, leading cross-functional teams to architect and deploy cutting-edge AI solutions that are redefining what’s possible.\n\nI've been driving synergy between product, engineering, and go-to-market teams to deliver scalable, human-centric AI platforms that empower users and elevate enterprise value. My work has spanned everything from LLM-powered automation to responsible AI governance frameworks, all while championing a culture of continuous innovation and design thinking.\n\nHighlights:\n\nSpearheaded the go-to-market launch of our proprietary GenAI solution, resulting in a 3x increase in client engagement and a 25% reduction in time-to-insight.\n\nPartnered with C-level stakeholders to align our AI roadmap with mission-critical OKRs, accelerating digital transformation across global verticals.\n\nEvangelized AI literacy across the organization through lunch-and-learns, internal workshops, and a monthly “AI for Impact” newsletter.\n\nCo-authored our Responsible AI Playbook, positioning HypeTech.ai as a thought leader in the ethical AI space.\n\nEvery day, I'm humbled to work alongside brilliant minds who are just as passionate about pushing the envelope as they are about making a positive societal impact. Let's build the future—one model at a time."
+          },
+          {
+            "jobtitle": "Machine Learning Lead",
+            "company": "VisionaryAI Labs",
+            "location": "Redmond, Washington",
+            "startDateMonth": "05",
+            "startDateYear": "2021",
+            "endDateMonth": "07",
+            "endDateYear": "2025",
+            "description": "At VisionaryAI Labs, I have been leading high-impact initiatives at the intersection of data science, machine learning, and product innovation. My role focuses on driving the end-to-end development of scalable, production-ready AI systems that solve real-world problems and deliver measurable business outcomes.\n\nKey responsibilities and accomplishments:\n\nDirected a cross-functional team of ML engineers, data scientists, and product stakeholders to develop and deploy computer vision models powering over 10 million edge devices globally.\n\nSpearheaded the implementation of MLOps workflows, reducing deployment timelines by 80% and improving experiment traceability and model reproducibility.\n\nLed efforts in fine-tuning transformer-based NLP architectures, resulting in a 27% improvement in multilingual text classification performance across key markets.\n\nPartnered with leadership to align AI initiatives with strategic business goals, enabling data-driven decision-making and accelerating product development cycles.\n\nEstablished internal knowledge-sharing frameworks, including technical deep dives, code reviews, and mentorship programs to elevate team capability and foster a culture of continuous learning.\n\nThis role has allowed me to combine technical rigor with strategic thinking to deliver AI solutions that are not only innovative but also ethical, reliable, and aligned with long-term organizational objectives.\n\nLet me know if you'd like one tailored to a different role (e.g., AI Product Manager, Research Scientist, Prompt Engineer, etc.) or with a different tone (e.g., more concise, more academic, etc.)."
+          }
+        ],
+        "school": "Meta University",
+        "degree": "Bachelors",
+        "fieldOfStudy": "Computer Science",
+        "gpa": "3.75",
+        "skills": [
+          "Python",
+          "SQL"
+        ],
+        "startDate": "2022",
+        "endDate": "2026",
+        "resumeFilePath": "./blank.txt",
+        "linkedInLink": "https://www.linkedin.com/in/username/",
+        "githubLink": "https://github.com/username",
+        "gender": "Male",
+        "ethnicity": "Black",
+        "hispanicOrLatino": "No",
+        "veteranStatus": "I am not a veteran",
+        "disability": "no"
+      },
+      "state": "completed",
+      "error": "page.waitForTimeout: Target page, context or browser has been closed",
+      "updated_at": "2026-07-08T10:17:35.718Z"
+    },
+    "test-002": {
+      "referral_id": "test-002",
+      "kind": "workday",
+      "application_id": "test-002",
+      "job_url": "https://aspentech.wd5.myworkdayjobs.com/en-US/AspenTech/job/Software-Quality-Engineer-I_R9206",
+      "profile": {
+        "email": "ayushtomar8624@gmail.com",
+        "fullName": "Ayush Pratap Singh",
+        "firstName": "Ayush",
+        "lastName": "Pratap Singh",
+        "suffix": "Mr",
+        "street": "1600 Amphitheatre Parkway",
+        "city": "Mountain View",
+        "state": "California",
+        "postalCode": "94043",
+        "phoneType": "Mobile",
+        "phoneNumber": "7889440379",
+        "workexperiences": [
+          {
+            "jobtitle": "Intern",
+            "company": "Acme Metals LLC",
+            "location": "New York, New York",
+            "startDateMonth": "05",
+            "startDateYear": "1990",
+            "endDateMonth": "06",
+            "endDateYear": "2020",
+            "description": "At HypeTech.ai, I've had the incredible opportunity to sit at the intersection of innovation, disruption, and impact, leading cross-functional teams to architect and deploy cutting-edge AI solutions that are redefining what’s possible.\n\nI've been driving synergy between product, engineering, and go-to-market teams to deliver scalable, human-centric AI platforms that empower users and elevate enterprise value. My work has spanned everything from LLM-powered automation to responsible AI governance frameworks, all while championing a culture of continuous innovation and design thinking.\n\nHighlights:\n\nSpearheaded the go-to-market launch of our proprietary GenAI solution, resulting in a 3x increase in client engagement and a 25% reduction in time-to-insight.\n\nPartnered with C-level stakeholders to align our AI roadmap with mission-critical OKRs, accelerating digital transformation across global verticals.\n\nEvangelized AI literacy across the organization through lunch-and-learns, internal workshops, and a monthly “AI for Impact” newsletter.\n\nCo-authored our Responsible AI Playbook, positioning HypeTech.ai as a thought leader in the ethical AI space.\n\nEvery day, I'm humbled to work alongside brilliant minds who are just as passionate about pushing the envelope as they are about making a positive societal impact. Let's build the future—one model at a time."
+          },
+          {
+            "jobtitle": "Machine Learning Lead",
+            "company": "VisionaryAI Labs",
+            "location": "Redmond, Washington",
+            "startDateMonth": "05",
+            "startDateYear": "2021",
+            "endDateMonth": "07",
+            "endDateYear": "2025",
+            "description": "At VisionaryAI Labs, I have been leading high-impact initiatives at the intersection of data science, machine learning, and product innovation. My role focuses on driving the end-to-end development of scalable, production-ready AI systems that solve real-world problems and deliver measurable business outcomes.\n\nKey responsibilities and accomplishments:\n\nDirected a cross-functional team of ML engineers, data scientists, and product stakeholders to develop and deploy computer vision models powering over 10 million edge devices globally.\n\nSpearheaded the implementation of MLOps workflows, reducing deployment timelines by 80% and improving experiment traceability and model reproducibility.\n\nLed efforts in fine-tuning transformer-based NLP architectures, resulting in a 27% improvement in multilingual text classification performance across key markets.\n\nPartnered with leadership to align AI initiatives with strategic business goals, enabling data-driven decision-making and accelerating product development cycles.\n\nEstablished internal knowledge-sharing frameworks, including technical deep dives, code reviews, and mentorship programs to elevate team capability and foster a culture of continuous learning.\n\nThis role has allowed me to combine technical rigor with strategic thinking to deliver AI solutions that are not only innovative but also ethical, reliable, and aligned with long-term organizational objectives.\n\nLet me know if you'd like one tailored to a different role (e.g., AI Product Manager, Research Scientist, Prompt Engineer, etc.) or with a different tone (e.g., more concise, more academic, etc.)."
+          }
+        ],
+        "school": "Meta University",
+        "degree": "Bachelors",
+        "fieldOfStudy": "Computer Science",
+        "gpa": "3.75",
+        "skills": [
+          "Python",
+          "SQL"
+        ],
+        "startDate": "2022",
+        "endDate": "2026",
+        "resumeFilePath": "./blank.txt",
+        "linkedInLink": "https://www.linkedin.com/in/username/",
+        "githubLink": "https://github.com/username",
+        "gender": "Male",
+        "ethnicity": "Black",
+        "hispanicOrLatino": "No",
+        "veteranStatus": "I am not a veteran",
+        "disability": "no"
+      },
+      "state": "completed",
+      "error": null,
+      "updated_at": "2026-07-08T10:24:07.646Z"
     }
   }
 }

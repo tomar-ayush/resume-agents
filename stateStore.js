@@ -37,12 +37,11 @@ async function saveState() {
 async function createJob(payload) {
   const current = await ensureStateLoaded();
   const referral_id = payload.referral_id;
+  // Spread the full payload so callers (LinkedIn / Workday / anything else)
+  // can persist any set of fields they care about without changing this file.
   current.jobs[referral_id] = {
+    ...payload,
     referral_id,
-    message: payload.message,
-    linkedin_url: payload.linkedin_url,
-    referral_name: payload.referral_name,
-    user_name: payload.user_name,
     state: 'queued',
     error: null,
     updated_at: new Date().toISOString(),
