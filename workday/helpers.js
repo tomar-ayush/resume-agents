@@ -186,37 +186,6 @@ async function debugFormFields(page) {
   }
 }
 
-// Dumps formField-* containers scoped to a specific group (e.g. the Work
-// Experience group after clicking "Add"). Used to learn a tenant's exact field
-// selectors for sections that are collapsed until expanded.
-async function debugFormFieldsInGroup(page, groupSelector) {
-  try {
-    return await page.evaluate((sel) => {
-      const group = document.querySelector(sel);
-      if (!group) return [];
-      const containers = group.querySelectorAll('div[data-automation-id^="formField-"]');
-      const result = [];
-      for (const c of containers) {
-        const rect = c.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) continue;
-        const label = (c.querySelector('label')?.textContent || '').trim();
-        const containerId = c.getAttribute('data-automation-id');
-        const inner = [];
-        for (const n of c.querySelectorAll('[data-automation-id]')) {
-          const id = n.getAttribute('data-automation-id');
-          if (id === containerId) continue;
-          inner.push({ tag: n.tagName.toLowerCase(), id });
-          if (inner.length >= 4) break;
-        }
-        result.push({ container: containerId, label, inner });
-      }
-      return result;
-    }, groupSelector);
-  } catch (_) {
-    return [];
-  }
-}
-
 // When detectPage returns 'unknown', dump the visible data-automation-ids so
 // we can learn what markers this tenant uses.
 async function debugUnknownPage(page) {
