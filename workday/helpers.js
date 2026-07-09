@@ -224,7 +224,7 @@ async function debugUnknownPage(page) {
   let ids = [];
   try {
     FormFieldsInGroup,
-    debug
+      debug
     ids = await page.evaluate(() => {
       const nodes = document.querySelectorAll('[data-automation-id]');
       const seen = new Set();

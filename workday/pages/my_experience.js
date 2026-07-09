@@ -163,7 +163,11 @@ async function addMultiselectValue(page, containerSelector, value) {
     logStep('skill_input_not_visible', { value });
     return;
   }
-  await input.click().catch(() => { });
+  // Focus (NOT click) the search input. A mouse click lands inside the input
+  // container, which overlaps the selected chips, and can hit a chip's remove
+  // (×) button — unselecting the previously added skill. focus() sets DOM
+  // focus without coordinates, so it can't accidentally remove a chip.
+  await input.focus().catch(() => { });
   await input.fill(value).catch(() => { });
   // Wait, then press Enter to trigger the search.
   await page.waitForTimeout(MULTISELECT_TIMINGS.afterTypeMs);
@@ -179,8 +183,22 @@ async function addMultiselectValue(page, containerSelector, value) {
 
   let clicked = false;
   if (await option.isVisible({ timeout: MULTISELECT_TIMINGS.optionVisibleMs }).catch(() => false)) {
-    await option.click({ timeout: MULTISELECT_TIMINGS.optionVisibleMs }).catch(() => { });
-    clicked = true;
+    // Skip clicking if this option is already selected — clicking again would
+    // toggle/unselect it (the bug we hit before). role="option" rows expose
+    // their state via aria-selected; we also check for a checkmark element.
+    const alreadySelected = await page.evaluate(() => {
+      const item = document.querySelector('[data-automation-id="activeListContainer"] [data-automation-id="menuItem"]');
+      if (!item) return false;
+      if (item.getAttribute('aria-selected') === 'true') return true;
+      if (item.querySelector('[data-automation-id="checkedOption"], [aria-checked="true"], .checked')) return true;
+      return false;
+    }).catch(() => false);
+    if (alreadySelected) {
+      logStep('skill_option_already_selected_skip', { value });
+    } else {
+      await option.click({ timeout: MULTISELECT_TIMINGS.optionVisibleMs }).catch(() => { });
+      clicked = true;
+    }
   } else {
     // Fallback: press Enter to commit the top result.
     await page.keyboard.press('Enter').catch(() => { });
