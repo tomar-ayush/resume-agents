@@ -6,6 +6,14 @@ const { performWorkdayApplication } = require('./workday/index');
 const { startCloudflareTunnel } = require('./cloudflareTunnel');
 const { loadLocalProfile, validateWorkdayProfile } = require('./workday/loadProfile');
 
+const cors = require('cors');
+const app = express();
+const PORT = process.env.PORT || 3005;
+
+app.use(cors());
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+
 
 async function downloadResumeFromUrl(presignedUrl, applicationId) {
     if (!presignedUrl) {
@@ -62,14 +70,6 @@ async function sendCallback(callbackUrl, token, state, extra = {}) {
 
 // Feature flag: set to false to disable Cloudflare Quick Tunnel
 const ENABLE_CLOUDFLARE_TUNNEL = true;
-
-const cors = require('cors');
-const app = express();
-const PORT = process.env.PORT || 3005;
-
-app.use(cors());
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 
 async function runLinkedInTask(payload) {
@@ -166,10 +166,6 @@ app.post('/run-workday-task', async (req, res) => {
     }
 });
 
-
-app.patch('/result-update', async (_req, res) => {
-    res.status(410).json({ success: false, error: 'status polling removed; use callback_url' });
-});
 
 (async () => {
     const server = app.listen(PORT, async () => {
