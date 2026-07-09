@@ -1,18 +1,57 @@
-# LinkedIn Connect Automation
+# Job-Application Automation (LinkedIn + Workday)
 
-Small Node/Express service that opens a LinkedIn profile URL, sends a connection request with a custom note, and waits for you to click **Send** manually. Uses your real logged-in Chrome profile so LinkedIn treats it like a normal browsing session — no headless flags, no automation banners, no separate login.
+A small Node/Express service that drives your **real logged-in Chrome profile** (via [patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright), a stealth-patched Playwright) to automate two flows:
 
-The final "Send" click is left to the human on purpose. This keeps the flow inside LinkedIn's ToS for personal use and makes the whole thing reviewable before anything leaves your account.
+1. **LinkedIn connection requests** — open a profile, send a connect request with a custom note, and wait for **you** to click **Send** manually.
+2. **Workday job applications** — open a job URL, autofill My Information / My Experience (work history, education, skills, resume, websites), and wait for **you** to handle auth (login/OTP) and the final **Save & Continue / Submit**.
+
+Both flows use your real Chrome cookies so the sites treat the session like a normal browser — no headless flags, no automation banners, no separate login. Human-in-the-loop steps (LinkedIn Send, Workday auth + final submit) are left to you on purpose, keeping the flow reviewable before anything leaves your account.
 
 ---
 
 ## How it works
 
 1. Copy your existing Chrome user-data-dir (with your real logged-in cookies) into a dedicated automation directory once.
-2. The script launches Chrome pointed at that copy via [patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright) (a stealth-patched Playwright).
-3. It navigates to a profile URL, finds the Connect (or Follow → More → Connect) button, opens the note modal, types your message character-by-character, and hands over to you to click Send.
+2. The server launches Chrome pointed at that copy via patchright, sharing one persistent context across tasks.
+3. **LinkedIn**: navigate to the profile, find Connect (or Follow → More → Connect), open the note modal, type your message character-by-character, then hand over for you to click Send.
+4. **Workday**: navigate to the job URL, run an assist loop that detects the current page and best-effort fills its fields, polling every 2s. You handle login/OTP and the final submit.
 
 Because the automation runs in its own user-data-dir, your daily Chrome can stay open while the script runs.
+
+---
+
+## Architecture
+
+```
+index.js                 Express server: /run-task (LinkedIn), /run-workday-task (Workday)
+  ├─ linkedin.js         LinkedIn connect flow (human clicks Send)
+  ├─ workday/index.js    Workday orchestrator: launch → navigate → assistLoop
+  │   └─ workday/loop.js Polls, detects page, runs autofillers, memoizes filled pages
+  │   └─ workday/pages/  Per-page autofillers (my_information, my_experience, …)
+  ├─ browser.js          Shared patchright launchPersistentContext (used by both flows)
+  ├─ cloudflareTunnel.js Optional public tunnel for the local server
+  └─ config.js           Chrome paths + timeouts
+```
+
+### Completion reporting (callback, not polling)
+
+There is **no local job-state store and no polling endpoint**. When a task finishes (or fails), the server POSTs a callback to the `callback_url` you supplied in the request:
+
+```json
+{ "state": "linkedin_completed", "token": "<callback_token>", "task_id": "abc" }
+```
+
+Platform-namespaced `state` values:
+
+| Flow     | Success            | Failure           |
+|----------|--------------------|-------------------|
+| LinkedIn | `linkedin_completed` | `linkedin_failed`  |
+| Workday  | `workday_completed`  | `workday_failed`   |
+
+- LinkedIn callback body includes `task_id` (echoed from the request).
+- Workday callback URL already embeds `task_id` in its path (`/{task_id}/callback`), so the body is just `{ state, token, error? }`.
+
+A callback failure is logged but never throws — it must not break task bookkeeping.
 
 ---
 
@@ -20,7 +59,8 @@ Because the automation runs in its own user-data-dir, your daily Chrome can stay
 
 - macOS (this guide is Mac-specific; other OSes work but paths differ)
 - Node.js 18+
-- Google Chrome installed and already logged into LinkedIn in some profile
+- Google Chrome installed and already logged into LinkedIn / the Workday tenant in some profile
+- `cloudflared` (optional, only if you want the public tunnel)
 
 Check versions:
 
@@ -43,9 +83,9 @@ On macOS the default install location is:
 
 If you use Chrome Beta / Canary / Chrome for Testing, adjust accordingly. To confirm, open Chrome and go to `chrome://version` — copy the value shown next to **Executable Path**.
 
-### 2. Find which Chrome profile you're logged into LinkedIn with
+### 2. Find which Chrome profile you're logged into the sites with
 
-Open your normal Chrome (the one where LinkedIn is already logged in) and visit `chrome://version`. Copy the value next to **Profile Path**. It will look like:
+Open your normal Chrome (the one where you're already logged in) and visit `chrome://version`. Copy the value next to **Profile Path**. It will look like:
 
 ```
 /Users/<you>/Library/Application Support/Google/Chrome/Profile 1
@@ -55,7 +95,7 @@ The last segment (`Profile 1`, `Default`, `Profile 3`, …) is the profile direc
 
 ### 3. Fully quit Chrome before copying
 
-**Do not skip this step.** If Chrome is running, its `Cookies` SQLite is locked and the copy will get a stale or empty snapshot — LinkedIn will appear logged out.
+**Do not skip this step.** If Chrome is running, its `Cookies` SQLite is locked and the copy will get a stale or empty snapshot — you'll appear logged out.
 
 ```bash
 osascript -e 'quit app "Google Chrome"'
@@ -121,29 +161,43 @@ npm start
 ```
 
 Server listens on `http://localhost:3000`.
-If Cloudflare is installed and not disabled, the app will also start a Quick Tunnel and print the public URL when it becomes available.
+If `cloudflared` is installed and not disabled, the app also starts a Quick Tunnel and prints the public URL.
 
-Trigger a connection task:
+Disable the tunnel with `DISABLE_CLOUDFLARE_TUNNEL=1 npm start`, or set `ENABLE_CLOUDFLARE_TUNNEL=false` in `index.js`.
+
+### LinkedIn task
 
 ```bash
 curl -X POST http://localhost:3000/run-task \
   -H "Content-Type: application/json" \
   -d '{
     "referral_id": "test-1",
+    "task_id": "task-abc",
     "linkedin_url": "https://www.linkedin.com/in/<username>/",
     "referral_name": "Alice",
-    "message": "Hi Alice — I liked your post about X and wanted to connect."
+    "message": "Hi Alice — I liked your post about X and wanted to connect.",
+    "callback_url": "https://orchestrator.example.com/task-abc/callback",
+    "callback_token": "secret-token"
   }'
 ```
 
-The automation Chrome window opens, navigates to the profile, opens the connect modal, and types your note. It then waits up to 5 minutes for **you** to click **Send** in the modal.
+The automation Chrome window opens, navigates to the profile, opens the connect modal, and types your note. It then waits up to 5 minutes for **you** to click **Send** in the modal, and finally POSTs `linkedin_completed` (or `linkedin_failed`) to `callback_url`.
 
-Poll status:
+### Workday task
 
 ```bash
-curl http://localhost:3000/health
-cat state.json | jq
+curl -X POST http://localhost:3005/run-workday-task \
+  -H "Content-Type: application/json" \
+  -d '{
+    "task_id": "task-xyz",
+    "job_url": "https://jobs.example.com/apply/123",
+    "resume_url": "https://<presigned-url>/original_resume.pdf",
+    "callback_url": "https://orchestrator.example.com/task-xyz/callback",
+    "callback_token": "secret-token"
+  }'
 ```
+
+Candidate data (name, education, skills, websites, etc.) is read from `information.js` locally — only the resume is downloaded from the presigned `resume_url` into `resources/`. The assist loop fills fields best-effort; you handle login/OTP and the final submit. On finish it POSTs `workday_completed` (or `workday_failed`) to `callback_url`.
 
 ---
 
@@ -159,30 +213,34 @@ Click **Always Allow**. If you pick "Allow" you'll be prompted every launch. If 
 
 ## Troubleshooting
 
-### LinkedIn shows the auth wall / logged out
+### Sites show the auth wall / logged out
 
 - The copy grabbed a locked snapshot because Chrome was still running. Redo steps 3–5.
 - The `Cookies` file in `~/chrome-automation/Profile 1/` is under ~100 KB. That's near-empty; earlier launches with broken flags may have pruned the cookies. Redo the copy from a good source.
 - `Local State` was not copied. Cookies encrypted at rest cannot be decrypted without it.
-- Wrong profile — the source profile isn't the one logged into LinkedIn. Recheck via `chrome://version` in your daily Chrome.
+- Wrong profile — the source profile isn't the one logged in. Recheck via `chrome://version` in your daily Chrome.
 
 ### "You are using an unsupported command-line flag: --no-sandbox"
 
-Playwright adds `--no-sandbox` by default. It should already be in the `ignoreDefaultArgs` list inside `linkedin.js`. If you see the banner, confirm you're running the latest version of that file and that the process actually restarted.
+patchright adds `--no-sandbox` by default. It is in the `ignoreDefaultArgs` list inside `browser.js` (shared launcher). If you see the banner, confirm you're running the latest version and that the process actually restarted.
 
 ### Automation window opens but is `about:blank` with a fresh, logged-out session
 
-You launched the automation Chrome once while `--use-mock-keychain` was still in the default args, which caused Chrome to delete undecryptable cookies. Redo the copy from your real profile (steps 3–5) and launch again — the current `linkedin.js` already suppresses the mock-keychain flag.
+You launched the automation Chrome once while `--use-mock-keychain` was still in the default args, which caused Chrome to delete undecryptable cookies. Redo the copy from your real profile (steps 3–5) and launch again — the shared launcher already suppresses the mock-keychain flag.
 
 ### `Chrome` refuses to launch / says the profile is in use
 
 You have your daily Chrome running against the same user-data-dir. Since the automation uses its own dir (`~/chrome-automation`), this shouldn't happen. If it does, check that `CHROME_USER_DATA_DIR` in `config.js` doesn't point at your real Chrome directory.
 
-### Connect / Follow button not found
+### Connect / Follow button not found (LinkedIn)
 
-LinkedIn's DOM changes. Open the profile manually and look at what buttons are actually there. If the person is already connected, "Connect" won't exist — the script will fail cleanly with a "neither Connect nor Follow was found" error.
+LinkedIn's DOM changes. Open the profile manually and look at what buttons are actually there. If the person is already connected, "Connect" won't exist — the script fails cleanly and POSTs `linkedin_failed`.
 
-### Verifying Playwright launched Chrome correctly
+### Workday fields not filling
+
+The assist loop logs every step as `[workday] {"step": ...}`. Watch the console for `skill_option_clicked`, `resume_uploaded`, `websites_filled`, etc. The loop memoizes filled pages in memory, so it won't re-fill a page it already completed (this resets on server restart).
+
+### Verifying patchright launched Chrome correctly
 
 Open `chrome://version` in the automation window. `Command Line` should be long (a hundred+ chars) and include `--user-data-dir=/Users/<you>/chrome-automation` and `--profile-directory=Profile 1`. `Profile Path` should point inside the automation dir. If it doesn't, the script isn't actually driving that window.
 
@@ -194,5 +252,5 @@ LinkedIn detection is behavioural more than technical — the biggest signals ar
 
 - Keep connection requests under ~15–20/day, spread across hours, not bursts.
 - Don't run this on the same account you use for scraping / search-heavy work.
-- The final Send click is manual on purpose. Don't automate it — that's the boundary between "power user" and "bot."
-- If LinkedIn ever prompts a captcha or "unusual activity" check, stop for at least 24h before running again.
+- The final Send / Submit click is manual on purpose. Don't automate it — that's the boundary between "power user" and "bot."
+- If a site ever prompts a captcha or "unusual activity" check, stop for at least 24h before running again.
