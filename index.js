@@ -4,7 +4,7 @@ const path = require('node:path');
 const { performConnectionTask } = require('./linkedin');
 const { performWorkdayApplication } = require('./workday/index');
 const { startCloudflareTunnel } = require('./cloudflareTunnel');
-const { loadLocalProfile, validateWorkdayProfile } = require('./workdayProfile');
+const { loadLocalProfile, validateWorkdayProfile } = require('./workday/loadProfile');
 const {
     loadState,
     ensureStateLoaded,
