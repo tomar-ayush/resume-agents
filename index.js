@@ -5,16 +5,8 @@ const { performConnectionTask } = require('./linkedin');
 const { performWorkdayApplication } = require('./workday/index');
 const { startCloudflareTunnel } = require('./cloudflareTunnel');
 const { loadLocalProfile, validateWorkdayProfile } = require('./workday/loadProfile');
-const {
-    loadState,
-    ensureStateLoaded,
-    createJob,
-    updateJob,
-    getState,
-} = require('./stateStore');
 
-// Download a presigned resume URL to a local file so the browser can upload it.
-// Returns the absolute path to the downloaded file, or null on failure.
+
 async function downloadResumeFromUrl(presignedUrl, applicationId) {
     if (!presignedUrl) {
         console.warn('[resume] no presigned URL provided — skipping download');
@@ -42,8 +34,34 @@ async function downloadResumeFromUrl(presignedUrl, applicationId) {
     }
 }
 
+
+const CALLBACK_STATE = {
+    linkedin: { completed: 'linkedin_completed', failed: 'linkedin_failed' },
+    workday: { completed: 'workday_completed', failed: 'workday_failed' },
+};
+
+
+async function sendCallback(callbackUrl, token, state, extra = {}) {
+    if (!callbackUrl) {
+        console.warn('[callback] no callback_url provided — skipping');
+        return;
+    }
+    try {
+        const body = { state, token, ...extra };
+        console.log('[callback] POST', callbackUrl, JSON.stringify(body));
+        const res = await fetch(callbackUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        console.log('[callback] response', res.status, res.statusText);
+    } catch (error) {
+        console.warn('[callback] request failed:', error.message);
+    }
+}
+
 // Feature flag: set to false to disable Cloudflare Quick Tunnel
-const ENABLE_CLOUDFLARE_TUNNEL = false;
+const ENABLE_CLOUDFLARE_TUNNEL = true;
 
 const cors = require('cors');
 const app = express();
@@ -53,60 +71,41 @@ app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
+
 async function runLinkedInTask(payload) {
     try {
-        await updateJob({ referral_id: payload.referral_id, state: 'running', error: null });
-        await performConnectionTask(payload, async (update) => {
-            await updateJob({ referral_id: payload.referral_id, ...update });
-        });
-        await updateJob({ referral_id: payload.referral_id, state: 'completed', error: null });
+        await performConnectionTask(payload, async () => { });
+        await sendCallback(payload.callback_url, payload.callback_token, CALLBACK_STATE.linkedin.completed, { task_id: payload.task_id });
     } catch (error) {
-        await updateJob({ referral_id: payload.referral_id, state: 'failed', error: error.message });
+        await sendCallback(payload.callback_url, payload.callback_token, CALLBACK_STATE.linkedin.failed, { task_id: payload.task_id, error: error.message });
     }
 }
+
 
 async function runWorkdayTask(payload) {
-    // stateStore keys by `referral_id`; we reuse that column for application_id
-    // so workday jobs live in the same jobs table without a schema change.
-    const id = payload.application_id;
     try {
-        await updateJob({ referral_id: id, state: 'running', error: null });
-        await performWorkdayApplication(payload, async (update) => {
-            await updateJob({ referral_id: id, ...update });
-        });
-        await updateJob({ referral_id: id, state: 'completed', error: null });
+        await performWorkdayApplication(payload, async () => { });
+        await sendCallback(payload.callback_url, payload.callback_token, CALLBACK_STATE.workday.completed);
     } catch (error) {
-        await updateJob({ referral_id: id, state: 'failed', error: error.message });
+        await sendCallback(payload.callback_url, payload.callback_token, CALLBACK_STATE.workday.failed, { error: error.message });
     }
 }
 
+
 app.get('/health', async (_req, res) => {
-    try {
-        await ensureStateLoaded();
-        res.json({ status: 'ok', timestamp: new Date().toISOString() });
-    } catch (error) {
-        res.status(500).json({ status: 'error', message: error.message });
-    }
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
 
 app.post('/run-task', async (req, res) => {
     try {
-        const payload = req.body || {};
+        const payload = req.body;
         console.log('Received task payload:', payload);
-        console.log('Content-Type:', req.get('content-type'));
         const { message, linkedin_url, referral_name, user_name, referral_id } = payload;
 
         if (!referral_id) {
             return res.status(400).json({ success: false, error: 'referral_id is required' });
         }
-
-        await createJob({
-            message,
-            linkedin_url,
-            referral_name,
-            user_name,
-            referral_id,
-        });
 
         void runLinkedInTask(payload);
 
@@ -116,12 +115,13 @@ app.post('/run-task', async (req, res) => {
     }
 });
 
+
 app.post('/run-workday-task', async (req, res) => {
     try {
         const rawPayload = req.body;
         console.log('Received workday task payload:', rawPayload);
         // Accept either `application_id` or `task_id` as the job identifier.
-        const application_id = rawPayload.application_id || rawPayload.task_id;
+        const application_id = rawPayload.task_id;
         const { job_url } = rawPayload;
 
         console.log('Received workday task:', { application_id, job_url });
@@ -144,26 +144,19 @@ app.post('/run-workday-task', async (req, res) => {
             });
         }
 
-        // Download the resume from the presigned URL in the request body and
-        // point the profile at the local copy so the upload step can use it.
-        const presignedResumeUrl = rawPayload.resume_url || rawPayload.resumeUrl || rawPayload.presigned_url;
+        const presignedResumeUrl = rawPayload.resume_url;
         const downloadedResumePath = await downloadResumeFromUrl(presignedResumeUrl, application_id);
         if (downloadedResumePath) {
             profile.resumeFilePath = downloadedResumePath;
         }
 
-        const payload = { application_id, job_url, profile };
-
-        // Persist a lightweight record — skip the credentials so we don't
-        // write plaintext passwords to state.json.
-        const { password: _pw, ...safeProfile } = profile;
-        await createJob({
-            referral_id: application_id,
-            kind: 'workday',
+        const payload = {
             application_id,
             job_url,
-            profile: safeProfile,
-        });
+            profile,
+            callback_url: rawPayload.callback_url,
+            callback_token: rawPayload.callback_token,
+        };
 
         void runWorkdayTask(payload);
 
@@ -173,34 +166,12 @@ app.post('/run-workday-task', async (req, res) => {
     }
 });
 
-app.get('/task-status/:id', async (req, res) => {
-    try {
-        const record = await getState(req.params.id);
-        if (!record) return res.status(404).json({ success: false, error: 'not found' });
-        return res.json({ success: true, result: record });
-    } catch (error) {
-        return res.status(500).json({ success: false, error: error.message });
-    }
-});
 
-app.patch('/result-update', async (req, res) => {
-    try {
-        const { referral_id, state, error } = req.body;
-
-        if (!referral_id) {
-            return res.status(400).json({ success: false, error: 'referral_id is required' });
-        }
-
-        const updated = await updateJob({ referral_id, state, error: error || null });
-        return res.json({ success: true, result: updated });
-    } catch (error) {
-        return res.status(500).json({ success: false, error: error.message });
-    }
+app.patch('/result-update', async (_req, res) => {
+    res.status(410).json({ success: false, error: 'status polling removed; use callback_url' });
 });
 
 (async () => {
-    await loadState();
-
     const server = app.listen(PORT, async () => {
         console.log(`Server running on port ${PORT}`);
 
