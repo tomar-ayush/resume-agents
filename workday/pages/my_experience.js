@@ -159,14 +159,12 @@ async function addMultiselectValue(page, containerSelector, value) {
   if (!(await input.isVisible({ timeout: MULTISELECT_TIMINGS.inputVisibleMs }).catch(() => false))) {
     input = container.locator('input').first();
   }
+
   if (!(await input.isVisible({ timeout: MULTISELECT_TIMINGS.inputVisibleMs }).catch(() => false))) {
     logStep('skill_input_not_visible', { value });
     return;
   }
-  // Focus (NOT click) the search input. A mouse click lands inside the input
-  // container, which overlaps the selected chips, and can hit a chip's remove
-  // (×) button — unselecting the previously added skill. focus() sets DOM
-  // focus without coordinates, so it can't accidentally remove a chip.
+
   await input.focus().catch(() => { });
   await input.fill(value).catch(() => { });
   // Wait, then press Enter to trigger the search.
@@ -183,9 +181,6 @@ async function addMultiselectValue(page, containerSelector, value) {
 
   let clicked = false;
   if (await option.isVisible({ timeout: MULTISELECT_TIMINGS.optionVisibleMs }).catch(() => false)) {
-    // Skip clicking if this option is already selected — clicking again would
-    // toggle/unselect it (the bug we hit before). role="option" rows expose
-    // their state via aria-selected; we also check for a checkmark element.
     const alreadySelected = await page.evaluate(() => {
       const item = document.querySelector('[data-automation-id="activeListContainer"] [data-automation-id="menuItem"]');
       if (!item) return false;
