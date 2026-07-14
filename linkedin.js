@@ -7,8 +7,8 @@ const {
   LINKEDIN_HOME_URL,
 } = require('./config');
 
-const USER_ACTION_HOLD_MS = 5 * 60 * 1000;
-const MIN_GAP_BETWEEN_TASKS_MS = 20 * 1000;
+const USER_ACTION_HOLD_MS = 45 * 1000;
+const MIN_GAP_BETWEEN_TASKS_MS = 10 * 1000;
 
 const activeContexts = new Map();
 let lastTaskFinishedAt = 0;
@@ -276,7 +276,7 @@ async function openConnectModalViaMore(page, followBtn, { alreadyFollowing = fal
 
 async function clickAddNote(page) {
   const addNote = page.locator('button[aria-label="Add a note"]');
-  await addNote.waitFor({ state: 'visible', timeout: 8000 });
+  await addNote.waitFor({ state: 'visible', timeout: 4000 });
   if (!(await addNote.isVisible().catch(() => false))) {
     throw new Error('"Add a note" button not found in Connect modal.');
   }
@@ -291,9 +291,26 @@ async function typeNoteHumanLike(page, note) {
   const field = page.locator(
     'div[role="dialog"] textarea, #custom-message, textarea[name="message"], textarea[aria-label*="note" i]'
   ).first();
-  await field.waitFor({ state: 'visible', timeout: 10000 });
+  await field.waitFor({ state: 'visible', timeout: 5000 });
   logStep('type_note', { length: note.length });
   await humanType(page, field, note);
+}
+
+function buildCallbackPayload({ state, token, task_id, task_type = 'linkedin', error = null }) {
+  const normalizedState = state === 'linkedin_completed' ? 'completed' : state === 'linkedin_failed' ? 'failed' : state;
+  return {
+    state: normalizedState,
+    status: normalizedState === 'failed' ? 'failed' : 'completed',
+    token,
+    task_id,
+    task_type,
+    agent_state: state,
+    ...(error ? { error } : {}),
+  };
+}
+
+function shouldTreatModalCloseAsSuccess(profileState) {
+  return ['pending', 'already_connected'].includes(profileState?.state);
 }
 
 // Watch for either an "Invitation sent" toast or the modal disappearing.
@@ -302,7 +319,7 @@ async function waitForSendClicked(page, timeoutMs) {
   let lastState = 'waiting_for_send';
   const watchdog = setInterval(() => {
     logStep('wait_watchdog', { remainingMs: Math.max(0, deadline - Date.now()), lastState });
-  }, 30_000);
+  }, 15_000);
 
   try {
     while (Date.now() < deadline) {
@@ -322,16 +339,20 @@ async function waitForSendClicked(page, timeoutMs) {
         logStep('wait_state_update', { lastState });
       }
 
-      // Modal closed without a toast → user probably cancelled or clicked away.
       if (!modalOpen && lastState === 'modal_closed') {
-        await sleep(1500);
+        await sleep(800);
         const stillClosed = (await page.locator('div[role="dialog"]').count()) === 0;
         if (stillClosed) {
+          const profile = await detectProfileState(page).catch(() => ({ state: 'unknown' }));
+          if (shouldTreatModalCloseAsSuccess(profile)) {
+            logStep('modal_closed_with_pending_state', { profileState: profile.state });
+            return { confirmed: true, timedOut: false, lastState: 'modal_closed_success' };
+          }
           return { confirmed: false, timedOut: false, lastState: 'modal_closed_no_toast' };
         }
       }
 
-      await sleep(1500);
+      await sleep(800);
     }
   } finally {
     clearInterval(watchdog);
@@ -378,11 +399,8 @@ async function performConnectionTask(payload, updateResult) {
       throw new Error('Browser context was not created successfully.');
     }
 
-    let page = browser.pages()[0];
-    if (!page) {
-      logStep('create_new_page', { referral_id });
-      page = await browser.newPage();
-    }
+    logStep('create_new_page', { referral_id });
+    const page = await browser.newPage();
 
     const targetUrl = linkedin_url;
     logStep('navigate_to_profile', { referral_id, url: targetUrl });
@@ -451,4 +469,6 @@ async function performConnectionTask(payload, updateResult) {
 
 module.exports = {
   performConnectionTask,
+  buildCallbackPayload,
+  shouldTreatModalCloseAsSuccess,
 };

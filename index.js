@@ -1,7 +1,7 @@
 const express = require('express');
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { performConnectionTask } = require('./linkedin');
+const { performConnectionTask, buildCallbackPayload } = require('./linkedin');
 const { performWorkdayApplication } = require('./workday/index');
 const { startCloudflareTunnel } = require('./cloudflareTunnel');
 const { loadLocalProfile, validateWorkdayProfile } = require('./workday/loadProfile');
@@ -55,7 +55,7 @@ async function sendCallback(callbackUrl, token, state, extra = {}) {
         return;
     }
     try {
-        const body = { state, token, ...extra };
+        const body = buildCallbackPayload({ state, token, ...extra });
         console.log('[callback] POST', callbackUrl, JSON.stringify(body));
         const res = await fetch(callbackUrl, {
             method: 'POST',
