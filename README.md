@@ -9,6 +9,13 @@ Both flows use your real Chrome cookies so the sites treat the session like a no
 
 ---
 
+## Demo Video
+
+
+[![Apply AI demo video](https://youtube.com)](https://youtu.be/4eCcbdr109k)
+
+---
+
 ## How it works
 
 1. Copy your existing Chrome user-data-dir (with your real logged-in cookies) into a dedicated automation directory once.
