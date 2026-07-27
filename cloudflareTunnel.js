@@ -25,7 +25,7 @@ function resolveCloudflareCommand() {
     return { command: process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared', args: [] };
 }
 
-function startCloudflareTunnel({ port, host = '127.0.0.1', logger = console } = {}) {
+function startCloudflareTunnel({ port, host = 'localhost', logger = console } = {}) {
     if (process.env.DISABLE_CLOUDFLARE_TUNNEL === '1' || process.env.DISABLE_CLOUDFLARE_TUNNEL === 'true') {
         logger.info('Cloudflare Quick Tunnel disabled via environment variable.');
         return Promise.resolve(null);
