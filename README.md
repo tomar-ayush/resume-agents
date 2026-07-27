@@ -11,9 +11,8 @@ Both flows use your real Chrome cookies so the sites treat the session like a no
 
 ## Demo Video
 
-<a href="https://youtu.be" target="_blank" rel="noopener noreferrer">
-  <img src="https://i.sstatic.net/Vp2cE.png" alt="Watch the video" width="100%">
-</a>
+
+[![Apply AI demo video](https://i.sstatic.net/Vp2cE.png)](https://youtu.be/4eCcbdr109k) {:target="_blank rel="noopener"}
 
 ---
 
