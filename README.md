@@ -12,7 +12,7 @@ Both flows use your real Chrome cookies so the sites treat the session like a no
 ## Demo Video
 
 
-[![Apply AI demo video](https://i.sstatic.net/Vp2cE.png)](https://youtu.be/4eCcbdr109k) {:target="_blank rel="noopener"}
+[![Apply AI demo video](https://i.sstatic.net/Vp2cE.png)](https://youtu.be/4eCcbdr109k)
 
 ---
 
