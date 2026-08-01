@@ -1,73 +1,49 @@
-# LinkedIn & Workday Automation - One-Line Windows Installer
+# LinkedIn & Workday Automation - Windows Installer
 
 Write-Host ""
-Write-Host "======================================================" -ForegroundColor Cyan
-Write-Host "🚀 LinkedIn & Workday Automation - Windows Installer" -ForegroundColor Cyan
-Write-Host "======================================================" -ForegroundColor Cyan
+Write-Host "🚀 Setting up LinkedIn & Workday Automation..." -ForegroundColor Cyan
 Write-Host ""
 
-# Step 1: Prerequisites
-Write-Host "------------------------------------------------------" -ForegroundColor Yellow
-Write-Host "[Step 1/4] 🔍 Checking Prerequisites (Git & Node.js)..." -ForegroundColor Yellow
-Write-Host "------------------------------------------------------" -ForegroundColor Yellow
-
+# 1. Check Git & Node
+Write-Host -NoNewline "  [1/4] Checking prerequisites (Git & Node.js)... "
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Write-Host "❌ Error: Git is not installed. Please install Git from https://git-scm.com/" -ForegroundColor Red
+    Write-Host "❌ Failed" -ForegroundColor Red
+    Write-Host "      Reason: Git is not installed. Please install Git from https://git-scm.com/" -ForegroundColor Red
     exit 1
 }
-Write-Host "  ✅ Git detected" -ForegroundColor Green
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-    Write-Host "❌ Error: Node.js is not installed. Please install Node.js (v18+) from https://nodejs.org/" -ForegroundColor Red
+    Write-Host "❌ Failed" -ForegroundColor Red
+    Write-Host "      Reason: Node.js is not installed. Please install Node.js (v18+) from https://nodejs.org/" -ForegroundColor Red
     exit 1
 }
-Write-Host "  ✅ Node.js detected" -ForegroundColor Green
+Write-Host "✔" -ForegroundColor Green
 
-# Step 2: Directory Setup
-Write-Host ""
-Write-Host "------------------------------------------------------" -ForegroundColor Yellow
-Write-Host "[Step 2/4] 📦 Setting Up Project Directory..." -ForegroundColor Yellow
-Write-Host "------------------------------------------------------" -ForegroundColor Yellow
-
+# 2. Directory Setup
+Write-Host -NoNewline "  [2/4] Setting up project directory... "
 $TargetDir = "$HOME\linkedin_note"
 
-if (Test-Path ".\package.json") {
-    $ProjectDir = Get-Location
-    Write-Host "  ℹ️ Using current directory: $ProjectDir" -ForegroundColor Gray
-} else {
+if (-not (Test-Path ".\package.json")) {
     $ProjectDir = $TargetDir
     if (-not (Test-Path "$ProjectDir\.git")) {
-        Write-Host "  ⏳ Cloning repository to $ProjectDir..." -ForegroundColor Gray
-        git clone https://github.com/tomar-ayush/resume-agents.git "$ProjectDir"
-        Write-Host "  ✅ Repository cloned successfully!" -ForegroundColor Green
-    } else {
-        Write-Host "  ℹ️ Project already exists at: $ProjectDir" -ForegroundColor Gray
+        git clone https://github.com/tomar-ayush/resume-agents.git "$ProjectDir" *>$null
     }
     Set-Location $ProjectDir
 }
+Write-Host "✔" -ForegroundColor Green
 
-# Step 3: Install Dependencies
-Write-Host ""
-Write-Host "------------------------------------------------------" -ForegroundColor Yellow
-Write-Host "[Step 3/4] 📥 Installing Dependencies..." -ForegroundColor Yellow
-Write-Host "------------------------------------------------------" -ForegroundColor Yellow
-Write-Host "  ⏳ Downloading and installing npm packages..." -ForegroundColor Gray
-npm install --no-audit --no-fund
-Write-Host "  ✅ Dependencies installed successfully!" -ForegroundColor Green
+# 3. Dependencies
+Write-Host -NoNewline "  [3/4] Installing dependencies... "
+npm install --no-audit --no-fund *>$null
+Write-Host "✔" -ForegroundColor Green
 
-# Step 4: Run Setup
-Write-Host ""
-Write-Host "------------------------------------------------------" -ForegroundColor Yellow
-Write-Host "[Step 4/4] ⚙️ Syncing Chrome Profile & Session..." -ForegroundColor Yellow
-Write-Host "------------------------------------------------------" -ForegroundColor Yellow
+# 4. Chrome Setup
+Write-Host "  [4/4] Syncing Chrome session profile..."
 node setup.js
 
 Write-Host ""
-Write-Host "======================================================" -ForegroundColor Green
-Write-Host "🎉 Setup Completed Successfully!" -ForegroundColor Green
-Write-Host "📌 A desktop shortcut has been created on your Desktop." -ForegroundColor Green
-Write-Host "🚀 Launching Express server..." -ForegroundColor Green
-Write-Host "======================================================" -ForegroundColor Green
+Write-Host "✨ Setup complete! Desktop shortcut created." -ForegroundColor Green
+Write-Host "🚀 Starting server..." -ForegroundColor Cyan
 Write-Host ""
 
 npm start

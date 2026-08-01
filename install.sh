@@ -2,78 +2,59 @@
 set -e
 
 echo ""
-echo "======================================================"
-echo "🚀 LinkedIn & Workday Automation - One-Line Installer"
-echo "======================================================"
+echo "🚀 Setting up LinkedIn & Workday Automation..."
 echo ""
 
-# Step 1: Check prerequisites
-echo "------------------------------------------------------"
-echo "[Step 1/4] 🔍 Checking Prerequisites (Git & Node.js)..."
-echo "------------------------------------------------------"
-
+# 1. Prerequisites
+echo -n "  [1/4] Checking prerequisites (Git & Node.js)... "
 if ! command -v git &> /dev/null; then
-    echo "❌ Error: Git is not installed. Please install Git first."
+    echo "❌ Failed"
+    echo "      Reason: Git is not installed. Please install Git first."
     exit 1
 fi
-echo "  ✅ Git detected: $(git --version)"
 
 if ! command -v node &> /dev/null; then
-    echo "❌ Error: Node.js is not installed. Please install Node.js (v18+) from https://nodejs.org/"
+    echo "❌ Failed"
+    echo "      Reason: Node.js is not installed. Please install Node.js (v18+) from https://nodejs.org/"
     exit 1
 fi
-echo "  ✅ Node.js detected: $(node -v)"
+echo "✔"
 
-NODE_VERSION=$(node -v | cut -d'.' -f1 | sed 's/v//')
-if [ "$NODE_VERSION" -lt 18 ]; then
-    echo "  ⚠️ Warning: Node.js v18 or higher is recommended. (Current: $(node -v))"
-fi
-
-# Step 2: Determine & prepare directory
-echo ""
-echo "------------------------------------------------------"
-echo "[Step 2/4] 📦 Setting Up Project Directory..."
-echo "------------------------------------------------------"
-
+# 2. Directory Setup
+echo -n "  [2/4] Setting up project directory... "
 TARGET_DIR="$HOME/linkedin_note"
 
-if [ -f "./package.json" ]; then
-    PROJECT_DIR="$(pwd)"
-    echo "  ℹ️ Using current directory: $PROJECT_DIR"
-else
-    PROJECT_DIR="$TARGET_DIR"
-    if [ ! -d "$PROJECT_DIR/.git" ]; then
-        echo "  ⏳ Cloning repository to $PROJECT_DIR..."
-        git clone https://github.com/tomar-ayush/resume-agents.git "$PROJECT_DIR"
-        echo "  ✅ Repository cloned successfully!"
-    else
-        echo "  ℹ️ Project already exists at: $PROJECT_DIR"
+if [ ! -f "./package.json" ]; then
+    if [ ! -d "$TARGET_DIR/.git" ]; then
+        git clone https://github.com/tomar-ayush/resume-agents.git "$TARGET_DIR" > /dev/null 2>&1 || {
+            echo "❌ Failed"
+            echo "      Reason: Could not clone git repository."
+            exit 1
+        }
     fi
-    cd "$PROJECT_DIR"
+    cd "$TARGET_DIR"
 fi
+echo "✔"
 
-# Step 3: Install dependencies
-echo ""
-echo "------------------------------------------------------"
-echo "[Step 3/4] 📥 Installing Dependencies..."
-echo "------------------------------------------------------"
-echo "  ⏳ Downloading and installing npm packages (patchright, express, etc.)..."
-npm install --no-audit --no-fund
-echo "  ✅ Dependencies installed successfully!"
+# 3. Install Dependencies
+echo -n "  [3/4] Installing dependencies... "
+npm install --no-audit --no-fund > /dev/null 2>&1 || {
+    echo "❌ Failed"
+    echo "      Reason: 'npm install' failed."
+    exit 1
+}
+echo "✔"
 
-# Step 4: Chrome Profile Setup
-echo ""
-echo "------------------------------------------------------"
-echo "[Step 4/4] ⚙️ Syncing Chrome Profile & Session..."
-echo "------------------------------------------------------"
-node setup.js
+# 4. Chrome Setup
+echo "  [4/4] Syncing Chrome session profile..."
+node setup.js || {
+    echo "  ❌ Chrome setup failed."
+    exit 1
+}
 
 echo ""
-echo "======================================================"
-echo "🎉 Setup Completed Successfully!"
-echo "📌 A desktop shortcut has been created on your Desktop."
-echo "🚀 Launching Express server..."
-echo "======================================================"
+echo "✨ Setup complete! Desktop shortcut created."
+echo "🚀 Starting server..."
 echo ""
 
 npm start
