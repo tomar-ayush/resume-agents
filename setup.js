@@ -168,29 +168,46 @@ function setupGlobalAlias(projectDir) {
   const aliasName = 'apply-ai';
 
   if (IS_MAC || IS_LINUX) {
-    // 1. Create executable script in ~/bin
-    const binDir = path.join(os.homedir(), 'bin');
-    if (!fs.existsSync(binDir)) {
-      try { fs.mkdirSync(binDir, { recursive: true }); } catch (e) {}
+    const scriptContent = `#!/usr/bin/env bash\ncd "${projectDir}" && npm start\n`;
+
+    // Write executable binary to ~/bin and ~/.local/bin
+    const targetBinDirs = [
+      path.join(os.homedir(), 'bin'),
+      path.join(os.homedir(), '.local', 'bin'),
+    ];
+
+    for (const binDir of targetBinDirs) {
+      if (!fs.existsSync(binDir)) {
+        try { fs.mkdirSync(binDir, { recursive: true }); } catch (e) {}
+      }
+      const binScriptPath = path.join(binDir, aliasName);
+      try {
+        fs.writeFileSync(binScriptPath, scriptContent, { mode: 0o755 });
+      } catch (e) {}
     }
 
-    const binScriptPath = path.join(binDir, aliasName);
-    const scriptContent = `#!/usr/bin/env bash\ncd "${projectDir}" && npm start\n`;
-    try {
-      fs.writeFileSync(binScriptPath, scriptContent, { mode: 0o755 });
-    } catch (e) {}
-
-    // 2. Append alias to ~/.zshrc, ~/.bashrc, ~/.bash_profile
-    const rcFiles = ['.zshrc', '.bashrc', '.bash_profile'].map((f) => path.join(os.homedir(), f));
+    // Append alias and PATH export to shell RC files
+    const rcFiles = ['.zshrc', '.bashrc', '.bash_profile', '.profile'].map((f) => path.join(os.homedir(), f));
+    const pathLine = `export PATH="$HOME/bin:$HOME/.local/bin:$PATH"`;
     const aliasLine = `alias ${aliasName}='cd "${projectDir}" && npm start'`;
 
     for (const rcFile of rcFiles) {
-      if (fs.existsSync(rcFile)) {
-        const content = fs.readFileSync(rcFile, 'utf8');
-        if (!content.includes(`alias ${aliasName}=`)) {
-          fs.appendFileSync(rcFile, `\n# Auto-Apply AI Alias\n${aliasLine}\n`);
+      try {
+        const fileExists = fs.existsSync(rcFile);
+        const content = fileExists ? fs.readFileSync(rcFile, 'utf8') : '';
+        let appendContent = '';
+
+        if (!content.includes('$HOME/bin:$HOME/.local/bin:$PATH')) {
+          appendContent += `\n${pathLine}\n`;
         }
-      }
+        if (!content.includes(`alias ${aliasName}=`)) {
+          appendContent += `${aliasLine}\n`;
+        }
+
+        if (appendContent) {
+          fs.appendFileSync(rcFile, appendContent);
+        }
+      } catch (e) {}
     }
   } else if (IS_WIN) {
     const binDir = path.join(os.homedir(), 'bin');
@@ -207,6 +224,8 @@ function setupGlobalAlias(projectDir) {
 
 // Print ASCII Art Banner
 function printAsciiArt() {
+  const rcFile = fs.existsSync(path.join(os.homedir(), '.zshrc')) ? '~/.zshrc' : '~/.bashrc';
+
   console.log(`
        _   ___ ___ _    __   __   _   ___ 
       /_\\ | _ \\ _ \\ |   \\ \\ / /  /_\\ |_ _|
@@ -215,7 +234,10 @@ function printAsciiArt() {
   `);
   console.log('======================================================');
   console.log('✨ Setup Completed Successfully!\n');
-  console.log('👉 To run from ANYWHERE in your terminal, type:');
+  console.log('👉 To use "apply-ai" in your CURRENT terminal window, run:');
+  console.log(`   $ source ${rcFile}`);
+  console.log('   $ apply-ai\n');
+  console.log('👉 In any NEW terminal window, simply type:');
   console.log('   $ apply-ai\n');
   console.log('👉 Or double-click the icon on your Desktop:');
   console.log('   [ Start LinkedIn Automation ]');
