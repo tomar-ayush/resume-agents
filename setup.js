@@ -218,14 +218,15 @@ function setupGlobalAlias(projectDir) {
     const batContent = `@echo off\ncd /d "${projectDir}"\nnpm start\n`;
     try {
       fs.writeFileSync(batPath, batContent);
+      // Append %USERPROFILE%\bin to Windows User PATH environment variable if not present
+      const psCmd = `$u=[Environment]::GetEnvironmentVariable('Path','User'); if($u -notlike '*${binDir}*'){[Environment]::SetEnvironmentVariable('Path', $u+';${binDir}','User')}`;
+      execSync(`powershell -Command "${psCmd}"`, { stdio: 'ignore' });
     } catch (e) {}
   }
 }
 
 // Print ASCII Art Banner
 function printAsciiArt() {
-  const rcFile = fs.existsSync(path.join(os.homedir(), '.zshrc')) ? '~/.zshrc' : '~/.bashrc';
-
   console.log(`
        _   ___ ___ _    __   __   _   ___ 
       /_\\ | _ \\ _ \\ |   \\ \\ / /  /_\\ |_ _|
@@ -234,11 +235,21 @@ function printAsciiArt() {
   `);
   console.log('======================================================');
   console.log('✨ Setup Completed Successfully!\n');
-  console.log('👉 To use "apply-ai" in your CURRENT terminal window, run:');
-  console.log(`   $ source ${rcFile}`);
-  console.log('   $ apply-ai\n');
-  console.log('👉 In any NEW terminal window, simply type:');
-  console.log('   $ apply-ai\n');
+
+  if (IS_WIN) {
+    console.log('👉 To use "apply-ai" in your CURRENT PowerShell window, run:');
+    console.log('   $env:Path = [System.Environment]::GetEnvironmentVariable("Path","User") + ";" + [System.Environment]::GetEnvironmentVariable("Path","Machine")\n');
+    console.log('👉 In any NEW PowerShell or Command Prompt window, simply type:');
+    console.log('   apply-ai\n');
+  } else {
+    const rcFile = fs.existsSync(path.join(os.homedir(), '.zshrc')) ? '~/.zshrc' : '~/.bashrc';
+    console.log('👉 To use "apply-ai" in your CURRENT terminal window, run:');
+    console.log(`   $ source ${rcFile}`);
+    console.log('   $ apply-ai\n');
+    console.log('👉 In any NEW terminal window, simply type:');
+    console.log('   $ apply-ai\n');
+  }
+
   console.log('👉 Or double-click the icon on your Desktop:');
   console.log('   [ Start LinkedIn Automation ]');
   console.log('======================================================\n');
