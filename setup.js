@@ -214,7 +214,7 @@ function printAsciiArt() {
     /_/ \\_\\_| |_| |____|  |_|  /_/ \\_\\___|
   `);
   console.log('======================================================');
-  console.log('✨ Setup Completed Successfully! (Server NOT auto-started)\n');
+  console.log('✨ Setup Completed Successfully!\n');
   console.log('👉 To run from ANYWHERE in your terminal, type:');
   console.log('   $ apply-ai\n');
   console.log('👉 Or double-click the icon on your Desktop:');
