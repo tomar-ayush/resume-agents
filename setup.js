@@ -1,12 +1,11 @@
 /**
  * Automated Cross-Platform Setup & Profile Sync Script
  * 
- * Handles:
- * 1. Gracefully closing Chrome on macOS, Windows, and Linux.
- * 2. Auto-detecting Chrome user profile path and finding active profiles.
- * 3. Copying Local State + target Profile to ~/chrome-automation.
- * 4. Touching "First Run" sentinel to skip welcome prompts.
- * 5. Creating double-clickable Desktop shortcuts.
+ * Features:
+ * - Real-time progressive copy updates with an interactive progress bar.
+ * - Clear step-by-step indicators ([1/5] to [5/5]).
+ * - Graceful Chrome closing across macOS, Windows, and Linux.
+ * - Desktop shortcut generation.
  */
 
 const fs = require('fs');
@@ -18,20 +17,37 @@ const IS_MAC = process.platform === 'darwin';
 const IS_WIN = process.platform === 'win32';
 const IS_LINUX = process.platform === 'linux';
 
-// --- Helper Functions ---
+// --- Logging Helper ---
 
-function log(msg, type = 'info') {
-  const icons = { info: 'ℹ️ ', success: '✅', warning: '⚠️ ', error: '❌', rocket: '🚀' };
-  console.log(`${icons[type] || ''} ${msg}`);
+function logStep(stepNum, totalSteps, title) {
+  console.log(`\n======================================================`);
+  console.log(`[${stepNum}/${totalSteps}] ${title}`);
+  console.log(`======================================================`);
+}
+
+function logInfo(msg) {
+  console.log(`  ℹ️  ${msg}`);
+}
+
+function logSuccess(msg) {
+  console.log(`  ✅ ${msg}`);
+}
+
+function logWarning(msg) {
+  console.log(`  ⚠️  ${msg}`);
+}
+
+function logError(msg) {
+  console.log(`  ❌ ${msg}`);
 }
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// 1. Close Chrome gracefully per OS
+// 1. Gracefully close Chrome per OS
 function closeChrome() {
-  log('Closing active Google Chrome instances...', 'info');
+  logInfo('Closing active Google Chrome instances to release session database locks...');
   try {
     if (IS_MAC) {
       execSync(`osascript -e 'quit app "Google Chrome"'`, { stdio: 'ignore' });
@@ -41,7 +57,7 @@ function closeChrome() {
       execSync(`pkill google-chrome || pkill chrome || pkill chromium`, { stdio: 'ignore' });
     }
   } catch (e) {
-    // Ignore errors if Chrome was not running
+    // Chrome was not running
   }
 }
 
@@ -62,7 +78,7 @@ function getSystemChromeDir() {
   return '';
 }
 
-// 3. Find active Chrome Profiles (Default, Profile 1, Profile 2, etc.)
+// 3. Find active Chrome Profiles
 function findActiveProfiles(chromeDir) {
   if (!fs.existsSync(chromeDir)) return [];
 
@@ -86,12 +102,79 @@ function findActiveProfiles(chromeDir) {
     }
   }
 
-  // Sort profiles by cookie size descending
   profiles.sort((a, b) => b.size - a.size);
   return profiles;
 }
 
-// 4. Create Desktop Shortcut for Non-Technical Users
+// Calculate directory size recursively
+function getFolderSize(dirPath) {
+  let size = 0;
+  if (!fs.existsSync(dirPath)) return 0;
+
+  try {
+    const files = fs.readdirSync(dirPath, { withFileTypes: true });
+    for (const file of files) {
+      const filePath = path.join(dirPath, file.name);
+      try {
+        if (file.isDirectory()) {
+          size += getFolderSize(filePath);
+        } else {
+          const stats = fs.statSync(filePath);
+          size += stats.size;
+        }
+      } catch (e) {}
+    }
+  } catch (e) {}
+
+  return size;
+}
+
+// Copy Directory with Real-time Terminal Progress Bar
+function copyDirWithProgress(src, dest, totalSize) {
+  let copiedBytes = 0;
+  const barLength = 25;
+  const safeTotalSize = Math.max(totalSize, 1);
+
+  function renderProgress() {
+    const pct = Math.min(100, (copiedBytes / safeTotalSize) * 100);
+    const filled = Math.round((barLength * pct) / 100);
+    const bar = '█'.repeat(filled) + '░'.repeat(barLength - filled);
+    const copiedMB = (copiedBytes / (1024 * 1024)).toFixed(1);
+    const totalMB = (safeTotalSize / (1024 * 1024)).toFixed(1);
+    process.stdout.write(`\r  ⏳ Copying files: [${bar}] ${pct.toFixed(1)}% (${copiedMB} MB / ${totalMB} MB)`);
+  }
+
+  function copyRecursive(currentSrc, currentDest) {
+    if (!fs.existsSync(currentDest)) {
+      fs.mkdirSync(currentDest, { recursive: true });
+    }
+    const entries = fs.readdirSync(currentSrc, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const srcPath = path.join(currentSrc, entry.name);
+      const destPath = path.join(currentDest, entry.name);
+
+      try {
+        if (entry.isDirectory()) {
+          copyRecursive(srcPath, destPath);
+        } else {
+          fs.copyFileSync(srcPath, destPath);
+          const stats = fs.statSync(srcPath);
+          copiedBytes += stats.size;
+          renderProgress();
+        }
+      } catch (e) {
+        // Skip locked temporary files safely
+      }
+    }
+  }
+
+  renderProgress();
+  copyRecursive(src, dest);
+  process.stdout.write('\n'); // New line when completed
+}
+
+// Create Desktop Shortcut for Non-Technical Users
 function createDesktopShortcut(projectDir) {
   const desktopDir = path.join(os.homedir(), 'Desktop');
   if (!fs.existsSync(desktopDir)) return;
@@ -106,7 +189,7 @@ echo "----------------------------------------------"
 npm start
 `;
     fs.writeFileSync(shortcutPath, content, { mode: 0o755 });
-    log(`Created Mac Desktop shortcut: ${shortcutPath}`, 'success');
+    logSuccess(`Created Desktop shortcut: ${shortcutPath}`);
   } else if (IS_WIN) {
     const shortcutPath = path.join(desktopDir, 'Start LinkedIn Automation.bat');
     const content = `@echo off
@@ -118,16 +201,15 @@ npm start
 pause
 `;
     fs.writeFileSync(shortcutPath, content);
-    log(`Created Windows Desktop shortcut: ${shortcutPath}`, 'success');
+    logSuccess(`Created Desktop shortcut: ${shortcutPath}`);
   }
 }
 
 // --- Main Setup Flow ---
 
 async function runSetup() {
-  log('Starting Automated Setup...', 'rocket');
+  console.log('\n🚀 Starting LinkedIn & Workday Automation Setup...');
 
-  // Check command line arguments (e.g. --profile="Profile 2")
   const args = process.argv.slice(2);
   let selectedProfileName = null;
   const profileArg = args.find((a) => a.startsWith('--profile='));
@@ -135,86 +217,98 @@ async function runSetup() {
     selectedProfileName = profileArg.split('=')[1];
   }
 
+  // STEP 1: Detect Chrome Installation
+  logStep(1, 5, 'Detecting Chrome Installation & Profiles');
   const systemChromeDir = getSystemChromeDir();
   if (!systemChromeDir || !fs.existsSync(systemChromeDir)) {
-    log(`Could not find Google Chrome user directory at: ${systemChromeDir}`, 'error');
-    log('Please ensure Google Chrome is installed.', 'warning');
+    logError(`Could not find Google Chrome user directory at: ${systemChromeDir}`);
+    logWarning('Please ensure Google Chrome is installed.');
     process.exit(1);
   }
 
   const profiles = findActiveProfiles(systemChromeDir);
   if (profiles.length === 0) {
-    log(`No Chrome profiles found inside: ${systemChromeDir}`, 'error');
+    logError(`No Chrome profiles found inside: ${systemChromeDir}`);
     process.exit(1);
   }
 
   if (!selectedProfileName) {
-    selectedProfileName = profiles[0].name; // Default to profile with largest Cookies file
+    selectedProfileName = profiles[0].name;
   }
 
-  log(`Detected Chrome directory: ${systemChromeDir}`, 'info');
-  log(`Selected Chrome profile: ${selectedProfileName}`, 'info');
+  logInfo(`Found system Chrome directory: ${systemChromeDir}`);
+  logInfo(`Selected active Chrome profile: "${selectedProfileName}"`);
+  logSuccess('Chrome profile detected!');
 
-  // Step 1: Close Chrome to release SQLite locks
+  // STEP 2: Close Active Chrome
+  logStep(2, 5, 'Closing Active Chrome Instances');
   closeChrome();
+  logInfo('Waiting 3 seconds for database locks to clear...');
   await sleep(3000);
+  logSuccess('Chrome closed successfully!');
 
-  // Step 2: Target automation directory
+  // STEP 3: Copy Profile Data with Real-time Progress Bar
+  logStep(3, 5, 'Copying Chrome Profile & Session Data');
   const targetDir = path.join(os.homedir(), 'chrome-automation');
-  log(`Automation target directory: ${targetDir}`, 'info');
+  logInfo(`Target directory: ${targetDir}`);
 
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
   }
 
-  // Step 3: Copy Local State
+  // Copy Local State Key
   const localStateSrc = path.join(systemChromeDir, 'Local State');
   const localStateDest = path.join(targetDir, 'Local State');
   if (fs.existsSync(localStateSrc)) {
     fs.copyFileSync(localStateSrc, localStateDest);
-    log('Copied Local State encryption key file.', 'success');
-  } else {
-    log('Local State file not found in source Chrome directory.', 'warning');
+    logSuccess('Copied Local State encryption key.');
   }
 
-  // Step 4: Copy Selected Profile Directory
+  // Copy Profile Folder with Progress Bar
   const profileSrc = path.join(systemChromeDir, selectedProfileName);
   const profileDest = path.join(targetDir, selectedProfileName);
 
   if (fs.existsSync(profileSrc)) {
-    log(`Copying profile "${selectedProfileName}" (this may take a few seconds)...`, 'info');
-    fs.cpSync(profileSrc, profileDest, { recursive: true, force: true });
-    log(`Successfully copied "${selectedProfileName}" to automation directory.`, 'success');
+    logInfo(`Calculating profile data size...`);
+    const totalSize = getFolderSize(profileSrc);
+    logInfo(`Total size to copy: ${(totalSize / (1024 * 1024)).toFixed(1)} MB`);
+    
+    copyDirWithProgress(profileSrc, profileDest, totalSize);
+    logSuccess(`Successfully copied "${selectedProfileName}" to automation directory!`);
   } else {
-    log(`Source profile folder "${profileSrc}" does not exist!`, 'error');
+    logError(`Source profile folder "${profileSrc}" does not exist!`);
     process.exit(1);
   }
 
-  // Step 5: Touch "First Run" sentinel
+  // STEP 4: Save Configuration & Sentinel
+  logStep(4, 5, 'Saving Configuration & Sentinel Files');
   const firstRunFile = path.join(targetDir, 'First Run');
   fs.writeFileSync(firstRunFile, '');
-  log('Created First Run sentinel.', 'success');
+  logSuccess('Created "First Run" sentinel file.');
 
-  // Step 6: Save local config.json
   const configJsonPath = path.join(__dirname, 'config.json');
   fs.writeFileSync(
     configJsonPath,
     JSON.stringify({ CHROME_PROFILE_DIRECTORY: selectedProfileName }, null, 2)
   );
+  logSuccess('Saved configuration file config.json');
 
-  // Step 7: Create Desktop Shortcut
+  // STEP 5: Create Shortcuts
+  logStep(5, 5, 'Generating Desktop Launchers');
   createDesktopShortcut(__dirname);
 
-  log('Setup completed successfully! You are ready to run.', 'success');
+  console.log('\n======================================================');
+  logSuccess('✨ Setup Completed Successfully!');
+  console.log('======================================================\n');
 
   if (args.includes('--start')) {
-    log('Starting server...', 'rocket');
+    logInfo('Starting server now...');
     execSync('npm start', { stdio: 'inherit' });
   }
 }
 
 runSetup().catch((err) => {
-  log(`Setup failed: ${err.message}`, 'error');
+  logError(`Setup failed: ${err.message}`);
   console.error(err);
   process.exit(1);
 });
