@@ -2,7 +2,7 @@
 // - Loads candidate data from the local information.js file.
 // - Validates that required fields are present and non-empty.
 
-const localProfile = require('../resources/information');
+const localProfile = require('../information');
 
 // Fields that MUST be present and non-empty (accepts both camelCase and snake_case).
 const REQUIRED_FIELDS = ['email', 'password'];

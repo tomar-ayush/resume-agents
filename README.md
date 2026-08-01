@@ -78,99 +78,60 @@ node --version
 
 ---
 
-## One-time setup
+## One-line Setup (Recommended)
 
-### 1. Find your Chrome executable path
-
-On macOS the default install location is:
-
-```
-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome
-```
-
-If you use Chrome Beta / Canary / Chrome for Testing, adjust accordingly. To confirm, open Chrome and go to `chrome://version` — copy the value shown next to **Executable Path**.
-
-### 2. Find which Chrome profile you're logged into the sites with
-
-Open your normal Chrome (the one where you're already logged in) and visit `chrome://version`. Copy the value next to **Profile Path**. It will look like:
-
-```
-/Users/<you>/Library/Application Support/Google/Chrome/Profile 1
-```
-
-The last segment (`Profile 1`, `Default`, `Profile 3`, …) is the profile directory name. Remember it.
-
-### 3. Fully quit Chrome before copying
-
-**Do not skip this step.** If Chrome is running, its `Cookies` SQLite is locked and the copy will get a stale or empty snapshot — you'll appear logged out.
+Run a single command in your terminal to set up everything automatically across **macOS, Linux, or Windows**:
 
 ```bash
-osascript -e 'quit app "Google Chrome"'
-sleep 3
-pgrep -fl "Google Chrome" || echo "chrome closed"
+# macOS / Linux
+curl -fsSL https://raw.githubusercontent.com/tomar-ayush/resume-agents/main/install.sh | bash
 ```
 
-Only proceed once it prints `chrome closed`.
-
-### 4. Copy your profile into a dedicated automation directory
-
-Replace `Profile 1` with your profile name from step 2 if different.
-
-```bash
-rm -rf ~/chrome-automation
-mkdir -p ~/chrome-automation
-cp "/Users/$USER/Library/Application Support/Google/Chrome/Local State" ~/chrome-automation/
-cp -R "/Users/$USER/Library/Application Support/Google/Chrome/Profile 1" ~/chrome-automation/
-touch ~/chrome-automation/"First Run"
+```powershell
+# Windows (PowerShell)
+iwr -useb https://raw.githubusercontent.com/tomar-ayush/resume-agents/main/install.ps1 | iex
 ```
 
-Why each piece matters:
-- `Local State` (at the user-data-dir root) holds the encrypted key material used to decrypt cookies. Without it Chrome creates a new key → your session cookies are unreadable → logged out.
-- `Profile 1/` holds cookies, history, preferences.
-- `First Run` sentinel skips the first-launch welcome tour.
-
-### 5. Verify the copy has real data
-
-```bash
-stat -f "%z %N" ~/chrome-automation/"Profile 1"/Cookies
-sqlite3 ~/chrome-automation/"Profile 1"/Cookies \
-  "SELECT COUNT(*) FROM cookies WHERE host_key LIKE '%linkedin%';"
-```
-
-You should see a Cookies file of at least a few tens of KB and a LinkedIn cookie count above 0. If the count is 0, the source profile isn't logged into LinkedIn — check that you copied the right one.
-
-### 6. Configure paths
-
-Edit `config.js`:
-
-```js
-module.exports = {
-  CHROME_USER_DATA_DIR: '/Users/<you>/chrome-automation',
-  CHROME_PROFILE_DIRECTORY: 'Profile 1',
-  CHROME_EXECUTABLE_PATH: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  LINKEDIN_HOME_URL: 'https://www.linkedin.com',
-  DEFAULT_TIMEOUT_MS: 600000,
-};
-```
-
-### 7. Install dependencies
-
-```bash
-npm install
-```
+### What the installer automatically does:
+1. Clones the project repository.
+2. Installs required npm packages (`patchright`, `express`, etc.).
+3. Safely closes Chrome to prevent database file locks.
+4. Auto-detects your active Chrome profile (cookies, session data) and copies `Local State` + Profile into `~/chrome-automation`.
+5. Creates a **Desktop Shortcut** (`Start LinkedIn Automation`) on your Desktop.
+6. Starts the server automatically!
 
 ---
 
-## Running
+## How to Run (2 Methods)
+
+You can launch the app using either of the following 2 methods:
+
+### Method 1: Desktop Icon (For Non-Technical Users — No Terminal Needed)
+Simply double-click the desktop shortcut created during setup:
+- **macOS / Linux:** Double-click **`Start LinkedIn Automation.command`** on your Desktop.
+- **Windows:** Double-click **`Start LinkedIn Automation.bat`** on your Desktop.
+
+*(Alternatively, double-click `Start.command` or `Start.bat` inside the project folder).*
+
+---
+
+### Method 2: Command Line (For Developers / Terminal Users)
+Open your terminal in the project directory and run:
 
 ```bash
+# Start the server directly
 npm start
+
+# Or run full automated setup + sync Chrome session + start server
+npm run setup -- --start
 ```
 
 Server listens on `http://localhost:3000`.
 If `cloudflared` is installed and not disabled, the app also starts a Quick Tunnel and prints the public URL.
 
 Disable the tunnel with `DISABLE_CLOUDFLARE_TUNNEL=1 npm start`, or set `ENABLE_CLOUDFLARE_TUNNEL=false` in `index.js`.
+
+---
 
 ### LinkedIn task
 
