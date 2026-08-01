@@ -45,16 +45,9 @@ npm install --no-audit --no-fund > /dev/null 2>&1 || {
 }
 echo "✔"
 
-# 4. Chrome Setup
+# 4. Chrome Setup & Alias Configuration
 echo "  [4/4] Syncing Chrome session profile..."
 node setup.js || {
     echo "  ❌ Chrome setup failed."
     exit 1
 }
-
-echo ""
-echo "✨ Setup complete! Desktop shortcut created."
-echo "🚀 Starting server..."
-echo ""
-
-npm start

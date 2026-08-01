@@ -1,6 +1,6 @@
 /**
  * Automated Cross-Platform Setup & Profile Sync Script
- * Clean, compact formatting with error handling.
+ * Clean output + Global Terminal Alias + ASCII Art Banner.
  */
 
 const fs = require('fs');
@@ -163,6 +163,65 @@ pause
   }
 }
 
+// Configure Global Terminal Alias "apply-ai"
+function setupGlobalAlias(projectDir) {
+  const aliasName = 'apply-ai';
+
+  if (IS_MAC || IS_LINUX) {
+    // 1. Create executable script in ~/bin
+    const binDir = path.join(os.homedir(), 'bin');
+    if (!fs.existsSync(binDir)) {
+      try { fs.mkdirSync(binDir, { recursive: true }); } catch (e) {}
+    }
+
+    const binScriptPath = path.join(binDir, aliasName);
+    const scriptContent = `#!/usr/bin/env bash\ncd "${projectDir}" && npm start\n`;
+    try {
+      fs.writeFileSync(binScriptPath, scriptContent, { mode: 0o755 });
+    } catch (e) {}
+
+    // 2. Append alias to ~/.zshrc, ~/.bashrc, ~/.bash_profile
+    const rcFiles = ['.zshrc', '.bashrc', '.bash_profile'].map((f) => path.join(os.homedir(), f));
+    const aliasLine = `alias ${aliasName}='cd "${projectDir}" && npm start'`;
+
+    for (const rcFile of rcFiles) {
+      if (fs.existsSync(rcFile)) {
+        const content = fs.readFileSync(rcFile, 'utf8');
+        if (!content.includes(`alias ${aliasName}=`)) {
+          fs.appendFileSync(rcFile, `\n# Auto-Apply AI Alias\n${aliasLine}\n`);
+        }
+      }
+    }
+  } else if (IS_WIN) {
+    const binDir = path.join(os.homedir(), 'bin');
+    if (!fs.existsSync(binDir)) {
+      try { fs.mkdirSync(binDir, { recursive: true }); } catch (e) {}
+    }
+    const batPath = path.join(binDir, `${aliasName}.bat`);
+    const batContent = `@echo off\ncd /d "${projectDir}"\nnpm start\n`;
+    try {
+      fs.writeFileSync(batPath, batContent);
+    } catch (e) {}
+  }
+}
+
+// Print ASCII Art Banner
+function printAsciiArt() {
+  console.log(`
+       _   ___ ___ _    __   __   _   ___ 
+      /_\\ | _ \\ _ \\ |   \\ \\ / /  /_\\ |_ _|
+     / _ \\|  _/  _/ |__  \\ V /  / _ \\ | | 
+    /_/ \\_\\_| |_| |____|  |_|  /_/ \\_\\___|
+  `);
+  console.log('======================================================');
+  console.log('✨ Setup Completed Successfully! (Server NOT auto-started)\n');
+  console.log('👉 To run from ANYWHERE in your terminal, type:');
+  console.log('   $ apply-ai\n');
+  console.log('👉 Or double-click the icon on your Desktop:');
+  console.log('   [ Start LinkedIn Automation ]');
+  console.log('======================================================\n');
+}
+
 // --- Main Setup Flow ---
 
 async function runSetup() {
@@ -235,13 +294,17 @@ async function runSetup() {
     JSON.stringify({ CHROME_PROFILE_DIRECTORY: selectedProfileName }, null, 2)
   );
 
-  // 4. Create Shortcut
-  process.stdout.write('  [4/4] Creating Desktop shortcut... ');
+  // 4. Create Desktop Shortcut & Global Terminal Alias
+  process.stdout.write('  [4/4] Setting up Desktop shortcut & global terminal alias ("apply-ai")... ');
   createDesktopShortcut(__dirname);
+  setupGlobalAlias(__dirname);
   console.log('✔');
 
+  // Print ASCII Art summary
+  printAsciiArt();
+
   if (args.includes('--start')) {
-    console.log('\n🚀 Starting server...');
+    console.log('🚀 Starting server now...');
     execSync('npm start', { stdio: 'inherit' });
   }
 }

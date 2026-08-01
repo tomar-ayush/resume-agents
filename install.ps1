@@ -40,10 +40,3 @@ Write-Host "✔" -ForegroundColor Green
 # 4. Chrome Setup
 Write-Host "  [4/4] Syncing Chrome session profile..."
 node setup.js
-
-Write-Host ""
-Write-Host "✨ Setup complete! Desktop shortcut created." -ForegroundColor Green
-Write-Host "🚀 Starting server..." -ForegroundColor Cyan
-Write-Host ""
-
-npm start
